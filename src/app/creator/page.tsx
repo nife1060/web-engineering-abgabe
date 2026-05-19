@@ -67,13 +67,13 @@ export default function CreatorDashboardPage() {
                 <p className="text-xs text-gray-400">Start building your content</p>
               </div>
             </Link>
-            <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition group">
+            <Link href="/dashboard/media" className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition group">
               <span className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-lg group-hover:bg-blue-200 transition">📤</span>
               <div className="text-left">
                 <p className="text-sm font-semibold text-gray-900">Upload content</p>
                 <p className="text-xs text-gray-400">Add videos, PDFs & more</p>
               </div>
-            </button>
+            </Link>
             <button className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition group">
               <span className="w-9 h-9 rounded-lg bg-green-100 text-green-600 flex items-center justify-center text-lg group-hover:bg-green-200 transition">💳</span>
               <div className="text-left">

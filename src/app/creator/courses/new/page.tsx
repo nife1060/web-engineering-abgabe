@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
+import { saveMediaItem } from "@/lib/data";
+import { MediaItem } from "@/lib/types";
 
 const steps = ["Basic Info", "Curriculum", "Media", "Pricing", "Review"];
 
@@ -14,11 +16,62 @@ export default function NewCoursePage() {
     setModules((prev) => [...prev, { id: Date.now(), title: `Module ${prev.length + 1}: New Module`, lessons: [] }]);
   };
 
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<{ name: string; size: number } | null>(null);
+
+  const handleThumbnail = async (file: File) => {
+    if (file.size > 10 * 1024 * 1024) return;
+    const preview = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target!.result as string);
+      reader.readAsDataURL(file);
+    });
+    setThumbnailPreview(preview);
+    const item: MediaItem = {
+      id: `media_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      name: file.name,
+      type: "image",
+      size: file.size,
+      uploadedAt: new Date().toISOString(),
+      previewUrl: preview,
+    };
+    await saveMediaItem(item);
+  };
+
+  const handleVideo = async (file: File) => {
+    if (file.size > 500 * 1024 * 1024) return;
+    setVideoFile({ name: file.name, size: file.size });
+    const item: MediaItem = {
+      id: `media_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      name: file.name,
+      type: "video",
+      size: file.size,
+      uploadedAt: new Date().toISOString(),
+    };
+    await saveMediaItem(item);
+  };
+
   const addLesson = (moduleId: number) => {
     setModules((prev) =>
       prev.map((m) =>
         m.id === moduleId
           ? { ...m, lessons: [...m.lessons, { id: Date.now(), title: "New Lesson", type: "video" }] }
+          : m
+      )
+    );
+  };
+
+  const removeModule = (moduleId: number) => {
+    setModules((prev) => prev.filter((m) => m.id !== moduleId));
+  };
+
+  const removeLesson = (moduleId: number, lessonId: number) => {
+    setModules((prev) =>
+      prev.map((m) =>
+        m.id === moduleId
+          ? { ...m, lessons: m.lessons.filter((l) => l.id !== lessonId) }
           : m
       )
     );
@@ -116,7 +169,7 @@ export default function NewCoursePage() {
                       defaultValue={module.title}
                       className="flex-1 text-sm font-semibold text-gray-900 bg-transparent focus:outline-none focus:bg-white focus:px-2 focus:py-1 focus:rounded-lg focus:border focus:border-purple-300 transition"
                     />
-                    <button className="text-gray-400 hover:text-red-500 transition text-xs">Remove</button>
+                    <button onClick={() => removeModule(module.id)} className="text-gray-400 hover:text-red-500 transition text-xs">Remove</button>
                   </div>
                   <div className="p-3 space-y-2">
                     {module.lessons.map((lesson, li) => (
@@ -133,7 +186,7 @@ export default function NewCoursePage() {
                           <option>Text</option>
                           <option>Quiz</option>
                         </select>
-                        <button className="text-gray-300 hover:text-red-400 transition text-xs">✕</button>
+                        <button onClick={() => removeLesson(module.id, lesson.id)} className="text-gray-300 hover:text-red-400 transition text-xs">✕</button>
                       </div>
                     ))}
                     <button onClick={() => addLesson(module.id)} className="w-full py-2 text-xs text-purple-600 hover:text-purple-800 font-medium border border-dashed border-purple-300 rounded-lg hover:bg-purple-50 transition">
@@ -151,18 +204,72 @@ export default function NewCoursePage() {
             <h2 className="text-lg font-bold text-gray-900">Media & Content</h2>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Course Thumbnail</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-purple-400 transition cursor-pointer group">
-                <div className="text-4xl mb-3">🖼️</div>
-                <p className="text-sm font-semibold text-gray-700 group-hover:text-purple-700">Click to upload thumbnail</p>
-                <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB · Recommended: 1280×720px</p>
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDragLeave={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleThumbnail(f); }}
+                onClick={() => thumbnailInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden hover:border-purple-400 transition cursor-pointer group"
+              >
+                {thumbnailPreview ? (
+                  <div className="relative">
+                    <img src={thumbnailPreview} alt="Thumbnail preview" className="w-full h-48 object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                      <p className="text-white text-sm font-semibold">Click to replace</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-10 text-center">
+                    <div className="text-4xl mb-3">🖼️</div>
+                    <p className="text-sm font-semibold text-gray-700 group-hover:text-purple-700">Click to upload thumbnail</p>
+                    <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB · Recommended: 1280×720px</p>
+                  </div>
+                )}
+                <input
+                  ref={thumbnailInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleThumbnail(f); e.target.value = ""; }}
+                  onClick={(e) => e.stopPropagation()}
+                />
               </div>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Promo Video</label>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-purple-400 transition cursor-pointer group">
-                <div className="text-4xl mb-3">🎬</div>
-                <p className="text-sm font-semibold text-gray-700 group-hover:text-purple-700">Upload a promotional video</p>
-                <p className="text-xs text-gray-400 mt-1">MP4, MOV up to 500MB · Max 5 minutes</p>
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDragLeave={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleVideo(f); }}
+                onClick={() => videoInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-purple-400 transition cursor-pointer group"
+              >
+                {videoFile ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900">{videoFile.name}</p>
+                    <p className="text-xs text-gray-500">{(videoFile.size / (1024 * 1024)).toFixed(1)} MB</p>
+                    <p className="text-xs text-purple-600 group-hover:underline">Click to replace</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-4xl mb-3">🎬</div>
+                    <p className="text-sm font-semibold text-gray-700 group-hover:text-purple-700">Upload a promotional video</p>
+                    <p className="text-xs text-gray-400 mt-1">MP4, MOV up to 500MB · Max 5 minutes</p>
+                  </>
+                )}
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="video/mp4,video/quicktime"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleVideo(f); e.target.value = ""; }}
+                  onClick={(e) => e.stopPropagation()}
+                />
               </div>
             </div>
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-700">
@@ -212,7 +319,7 @@ export default function NewCoursePage() {
               {[
                 { label: "Title", value: "My New Course", ok: true },
                 { label: "Description", value: "Added ✓", ok: true },
-                { label: "Thumbnail", value: "Missing", ok: false },
+                { label: "Thumbnail", value: thumbnailPreview ? "Uploaded ✓" : "Missing", ok: !!thumbnailPreview },
                 { label: "Modules", value: `${modules.length} modules`, ok: true },
                 { label: "Total Lessons", value: `${modules.reduce((a, m) => a + m.lessons.length, 0)} lessons`, ok: true },
                 { label: "Price", value: "€79.99", ok: true },

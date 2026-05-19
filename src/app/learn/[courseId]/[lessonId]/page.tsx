@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { mockCourses } from "@/lib/data";
 import { notFound } from "next/navigation";
+import LessonMediaSection from "@/components/LessonMediaSection";
 
 export default function LessonPage({ params }: { params: { courseId: string; lessonId: string } }) {
   const course = mockCourses.find((c) => c.id === params.courseId);
@@ -115,7 +116,9 @@ export default function LessonPage({ params }: { params: { courseId: string; les
               the exercises below.
             </p>
 
-            <div className="flex items-center gap-4">
+            <LessonMediaSection lessonId={currentLesson.id} />
+
+            <div className="flex items-center gap-4 mt-6">
               {prevLesson ? (
                 <Link href={`/learn/${course.id}/${prevLesson.id}`} className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition">
                   ← Previous: {prevLesson.title}

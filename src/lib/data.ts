@@ -1,3 +1,5 @@
+import { MediaItem } from "./types";
+
 export type Role = "admin" | "creator" | "user";
 
 export interface User {
@@ -223,6 +225,45 @@ export const mockCourses: Course[] = [
     ],
   },
 ];
+
+// ── Media Library (localStorage-backed) ────────────────────────────────────
+
+export async function getMediaItems(): Promise<MediaItem[]> {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem("media_items");
+  return raw ? JSON.parse(raw) : [];
+}
+
+export async function saveMediaItem(item: MediaItem): Promise<void> {
+  const existing = await getMediaItems();
+  localStorage.setItem("media_items", JSON.stringify([...existing, item]));
+}
+
+export async function deleteMediaItem(id: string): Promise<void> {
+  const existing = await getMediaItems();
+  localStorage.setItem(
+    "media_items",
+    JSON.stringify(existing.filter((i) => i.id !== id))
+  );
+}
+
+export async function getMediaForLesson(lessonId: string): Promise<MediaItem[]> {
+  const all = await getMediaItems();
+  return all.filter((item) => item.lessonId === lessonId);
+}
+
+export async function assignMediaToLesson(
+  mediaId: string,
+  lessonId: string
+): Promise<void> {
+  const existing = await getMediaItems();
+  const updated = existing.map((item) =>
+    item.id === mediaId ? { ...item, lessonId } : item
+  );
+  localStorage.setItem("media_items", JSON.stringify(updated));
+}
+
+// ── Analytics ───────────────────────────────────────────────────────────────
 
 export const mockAnalytics = {
   totalStudents: 1240,
