@@ -4,8 +4,10 @@ import { mockCourses } from "@/lib/data";
 
 const enrolledCourses = mockCourses.filter((course) => course.enrolled);
 
-export default async function DashboardCoursesPage({ searchParams }: { searchParams?: any }) {
-  const params = await searchParams;
+type CourseSearchParams = Promise<{ coursetab?: string | string[] } | undefined>;
+
+export default async function DashboardCoursesPage({ searchParams }: { searchParams?: CourseSearchParams }) {
+  const params = (await searchParams) ?? {};
   const courseTabParam = params.coursetab;
   const courseTab = Array.isArray(courseTabParam) ? courseTabParam[0] : courseTabParam || "all";
 

@@ -2,12 +2,13 @@ import Link from "next/link";
 import { mockCourses } from "@/lib/data";
 import { notFound } from "next/navigation";
 
-export default function LessonPage({ params }: { params: { courseId: string; lessonId: string } }) {
-  const course = mockCourses.find((c) => c.id === params.courseId);
+export default async function LessonPage({ params }: { params: Promise<{ courseId: string; lessonId: string }> }) {
+  const { courseId, lessonId } = await params;
+  const course = mockCourses.find((c) => c.id === courseId);
   if (!course) return notFound();
 
   const allLessons = course.modules.flatMap((m) => m.lessons);
-  const currentLesson = allLessons.find((l) => l.id === params.lessonId) ?? allLessons[0];
+  const currentLesson = allLessons.find((l) => l.id === lessonId) ?? allLessons[0];
   const currentIndex = allLessons.indexOf(currentLesson);
   const prevLesson = currentIndex > 0 ? allLessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < allLessons.length - 1 ? allLessons[currentIndex + 1] : null;

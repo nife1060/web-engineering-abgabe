@@ -63,7 +63,7 @@ export default function CourseCard({ course, showProgress }: Props) {
         {inner}
         <div className="px-4 pb-4">
           <Link
-            href={`/learn/${course.id}/l1`}
+            href={`/courses/${course.id}`}
             className="block text-center text-xs font-semibold text-purple-600 border border-purple-600 rounded-lg py-2 hover:bg-purple-50 transition"
           >
             Continue Learning
