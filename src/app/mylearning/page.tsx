@@ -59,6 +59,7 @@ export default async function MyLearningPage({
       },
       select: {
         lessonId: true,
+        completedAt: true,
       },
     }),
     prisma.course.findMany({
@@ -154,6 +155,10 @@ export default async function MyLearningPage({
           activeCourseStatus={activeCourseStatus}
           completedLessons={lessonsCompleted}
           completedLessonIds={completedLessonIds}
+          completedLessonActivity={completedProgress.map((progress) => ({
+            lessonId: progress.lessonId,
+            completedAt: progress.completedAt?.toISOString() ?? null,
+          }))}
           baseEnrolledCourses={continueLearningCourses}
           availableCourses={availableCourses}
           recommendedCourses={recommendedCourses}

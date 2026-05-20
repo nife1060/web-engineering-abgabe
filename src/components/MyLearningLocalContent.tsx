@@ -16,6 +16,10 @@ type MyLearningLocalContentProps = {
   activeCourseStatus: string;
   completedLessons: number;
   completedLessonIds: string[];
+  completedLessonActivity: {
+    lessonId: string;
+    completedAt: string | null;
+  }[];
   baseEnrolledCourses: Course[];
   availableCourses: Course[];
   recommendedCourses: Course[];
@@ -129,6 +133,7 @@ export default function MyLearningLocalContent({
   activeCourseStatus,
   completedLessons,
   completedLessonIds,
+  completedLessonActivity,
   baseEnrolledCourses,
   availableCourses,
   recommendedCourses,
@@ -159,6 +164,9 @@ export default function MyLearningLocalContent({
     const courses = new Map<string, Course>();
     const availableCourseById = new Map(availableCourses.map((course) => [course.id, course]));
     const completedLessonIdSet = new Set(completedLessonIds);
+    const sortedStoredEnrollments = [...storedEnrollments].sort(
+      (a, b) => new Date(b.enrolledAt).getTime() - new Date(a.enrolledAt).getTime(),
+    );
     const syncProgress = (course: Course) => {
       const lessons = course.modules.flatMap((module) => module.lessons);
       const completedCount = lessons.filter((lesson) => completedLessonIdSet.has(lesson.id) || lesson.completed).length;
@@ -177,11 +185,7 @@ export default function MyLearningLocalContent({
       };
     };
 
-    for (const course of baseEnrolledCourses) {
-      courses.set(course.id, syncProgress(course));
-    }
-
-    for (const enrollment of storedEnrollments) {
+    for (const enrollment of sortedStoredEnrollments) {
       const currentCourse = availableCourseById.get(enrollment.course.id) ?? enrollment.course;
 
       courses.set(enrollment.course.id, syncProgress({
@@ -189,6 +193,12 @@ export default function MyLearningLocalContent({
         enrolled: true,
         progress: enrollment.progress,
       }));
+    }
+
+    for (const course of baseEnrolledCourses) {
+      if (!courses.has(course.id)) {
+        courses.set(course.id, syncProgress(course));
+      }
     }
 
     return Array.from(courses.values());
@@ -200,7 +210,7 @@ export default function MyLearningLocalContent({
       : activeCourseStatus === "completed"
         ? enrolledCourses.filter((course) => (course.progress ?? 0) >= 100)
         : enrolledCourses;
-  const continueLearningCourses = enrolledCourses.slice(0, 3);
+  const continueLearningCourses = enrolledCourses;
   const enrolledCount = enrolledCourses.length;
   const overallProgress =
     enrolledCount > 0
@@ -213,7 +223,32 @@ export default function MyLearningLocalContent({
     .map((wishlistItem) => wishlistItem.course)
     .filter((course) => !enrolledCourses.some((enrolledCourse) => enrolledCourse.id === course.id));
   const latestEnrollment = storedEnrollments[0];
+  const completionActivities = enrolledCourses
+    .map((course) => {
+      const lessonIds = new Set(course.modules.flatMap((module) => module.lessons.map((lesson) => lesson.id)));
+      const completedLessonsInCourse = completedLessonActivity.filter((progress) => lessonIds.has(progress.lessonId));
+
+      if (completedLessonsInCourse.length === 0) {
+        return null;
+      }
+
+      const latestCompletedAt = completedLessonsInCourse
+        .map((progress) => progress.completedAt)
+        .filter((completedAt): completedAt is string => completedAt !== null)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
+      return {
+        title: `Completed ${completedLessonsInCourse.length} ${
+          completedLessonsInCourse.length === 1 ? "lesson" : "lessons"
+        }`,
+        course: course.title,
+        time: latestCompletedAt ? formatActivityTime(new Date(latestCompletedAt)) : "Recently",
+        marker: "OK",
+      };
+    })
+    .filter((activity) => activity !== null);
   const recentActivities = [
+    ...completionActivities,
     latestEnrollment
       ? {
           title: "Enrolled in course",
