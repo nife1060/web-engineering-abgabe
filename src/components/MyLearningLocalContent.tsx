@@ -4,7 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatCoursePrice } from "@/lib/course-format";
 import type { Course } from "@/lib/data";
-import { readStoredEnrollments, StoredEnrollment } from "@/lib/enrollment-storage";
+import {
+  readStoredEnrollments,
+  readStoredWishlistCourses,
+  StoredEnrollment,
+  StoredWishlistCourse,
+} from "@/lib/enrollment-storage";
 
 type MyLearningLocalContentProps = {
   activeTab: string;
@@ -34,8 +39,13 @@ function formatActivityTime(date: Date) {
   return `${daysAgo} days ago`;
 }
 
+function getLessonPlayerHref(course: Course) {
+  return `/learn/${course.id}`;
+}
+
 function ProgressCourseCard({ course }: { course: Course }) {
   const progress = course.progress ?? 0;
+  const lessonHref = getLessonPlayerHref(course);
 
   return (
     <div className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition">
@@ -65,7 +75,7 @@ function ProgressCourseCard({ course }: { course: Course }) {
         </div>
 
         <Link
-          href={`/courses/${course.id}`}
+          href={lessonHref}
           className="mt-4 block w-full rounded-lg border border-purple-600 py-2 text-center text-xs font-bold text-purple-600 hover:bg-purple-50 transition"
         >
           Continue Learning
@@ -120,17 +130,24 @@ export default function MyLearningLocalContent({
   recommendedCourses,
 }: MyLearningLocalContentProps) {
   const [storedEnrollments, setStoredEnrollments] = useState<StoredEnrollment[]>([]);
+  const [storedWishlist, setStoredWishlist] = useState<StoredWishlistCourse[]>([]);
 
   useEffect(() => {
     const refreshEnrollments = () => setStoredEnrollments(readStoredEnrollments());
+    const refreshWishlist = () => setStoredWishlist(readStoredWishlistCourses());
 
     refreshEnrollments();
+    refreshWishlist();
     window.addEventListener("storage", refreshEnrollments);
     window.addEventListener("learnhub-enrollments-changed", refreshEnrollments);
+    window.addEventListener("storage", refreshWishlist);
+    window.addEventListener("learnhub-wishlist-changed", refreshWishlist);
 
     return () => {
       window.removeEventListener("storage", refreshEnrollments);
       window.removeEventListener("learnhub-enrollments-changed", refreshEnrollments);
+      window.removeEventListener("storage", refreshWishlist);
+      window.removeEventListener("learnhub-wishlist-changed", refreshWishlist);
     };
   }, []);
 
@@ -167,6 +184,9 @@ export default function MyLearningLocalContent({
   const recommendedCourseList = recommendedCourses.filter(
     (course) => !enrolledCourses.some((enrolledCourse) => enrolledCourse.id === course.id),
   );
+  const wishlistCourses = storedWishlist
+    .map((wishlistItem) => wishlistItem.course)
+    .filter((course) => !enrolledCourses.some((enrolledCourse) => enrolledCourse.id === course.id));
   const latestEnrollment = storedEnrollments[0];
   const recentActivities = [
     latestEnrollment
@@ -219,6 +239,32 @@ export default function MyLearningLocalContent({
           <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
             <h3 className="font-bold text-gray-900 text-lg mb-2">No courses found.</h3>
             <p className="text-gray-500 text-sm">Courses matching this learning status will appear here.</p>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  if (activeTab === "wishlist") {
+    return (
+      <section>
+        <div className="mb-5">
+          <h2 className="text-xl font-extrabold text-gray-900">Wishlist</h2>
+          <p className="text-sm text-gray-500 mt-1">Courses you saved for later.</p>
+        </div>
+        {wishlistCourses.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {wishlistCourses.map((course) => (
+              <RecommendedCourseCard key={course.id} course={course} />
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+            <h2 className="font-bold text-gray-900 text-lg mb-2">Your wishlist is empty.</h2>
+            <p className="text-gray-500 text-sm mb-5">Browse courses and save anything you want to revisit.</p>
+            <Link href="/courses" className="inline-flex bg-purple-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-purple-700 transition text-sm">
+              Browse Courses
+            </Link>
           </div>
         )}
       </section>

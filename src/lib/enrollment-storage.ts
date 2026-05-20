@@ -1,12 +1,18 @@
 import type { Course } from "@/lib/data";
 
 export const enrolledCoursesKey = "learnhub_enrolled_courses";
-export const wishlistKeys = ["learnhub_wishlist", "learninghub_wishlist"];
+export const wishlistKey = "learnhub_wishlist";
+export const wishlistKeys = [wishlistKey, "learninghub_wishlist"];
 
 export type StoredEnrollment = {
   course: Course;
   progress: number;
   enrolledAt: string;
+};
+
+export type StoredWishlistCourse = {
+  course: Course;
+  addedAt: string;
 };
 
 export function readStoredEnrollments() {
@@ -35,6 +41,30 @@ export function writeStoredEnrollments(enrollments: StoredEnrollment[]) {
   window.dispatchEvent(new Event("learnhub-enrollments-changed"));
 }
 
+export function readStoredWishlistCourses() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const rawWishlist = window.localStorage.getItem(wishlistKey);
+    if (!rawWishlist) return [];
+
+    const wishlist = JSON.parse(rawWishlist);
+    if (!Array.isArray(wishlist)) return [];
+
+    return wishlist.filter(
+      (item): item is StoredWishlistCourse =>
+        typeof item?.course?.id === "string" && typeof item?.addedAt === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function writeStoredWishlistCourses(wishlist: StoredWishlistCourse[]) {
+  window.localStorage.setItem(wishlistKey, JSON.stringify(wishlist));
+  window.dispatchEvent(new Event("learnhub-wishlist-changed"));
+}
+
 export function removeCourseFromStoredWishlist(courseId: string) {
   for (const key of wishlistKeys) {
     try {
@@ -46,7 +76,7 @@ export function removeCourseFromStoredWishlist(courseId: string) {
 
       const nextWishlist = wishlist.filter((item) => {
         if (typeof item === "string") return item !== courseId;
-        return item?.id !== courseId && item?.courseId !== courseId;
+        return item?.id !== courseId && item?.courseId !== courseId && item?.course?.id !== courseId;
       });
 
       window.localStorage.setItem(key, JSON.stringify(nextWishlist));
@@ -54,4 +84,6 @@ export function removeCourseFromStoredWishlist(courseId: string) {
       window.localStorage.removeItem(key);
     }
   }
+
+  window.dispatchEvent(new Event("learnhub-wishlist-changed"));
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { addToWishlist, removeFromWishlist } from "@/app/actions/course-interactions";
 import EnrollmentButton from "@/components/EnrollmentButton";
+import WishlistButton from "@/components/WishlistButton";
 import { courseCtaLabel, formatCoursePrice } from "@/lib/course-format";
 import { getSession } from "@/lib/auth";
 import { mockCourses } from "@/lib/data";
@@ -39,18 +39,6 @@ export default async function CourseDetailPage({ params }: Props) {
   if (dbCourse && dbCourse.status !== "PUBLISHED" && session?.role !== "ADMIN" && session?.userId !== dbCourse.creatorId) {
     return notFound();
   }
-
-  const isWishlisted =
-    Boolean(session && dbCourse) &&
-    (await prisma.wishlist.findUnique({
-      where: {
-        userId_courseId: {
-          userId: session!.userId,
-          courseId: dbCourse!.id,
-        },
-      },
-      select: { id: true },
-    })) !== null;
 
   const course =
     mockCourse ??
@@ -158,25 +146,7 @@ export default async function CourseDetailPage({ params }: Props) {
                   </div>
                 </div>
 
-                {dbCourse ? (
-                  isWishlisted ? (
-                    <form action={removeFromWishlist.bind(null, dbCourse.id)}>
-                      <button className="w-full border border-purple-300 text-purple-700 font-semibold py-3 rounded-xl hover:bg-purple-50 hover:border-purple-500 transition text-sm mb-4 cursor-pointer">
-                        Remove from wishlist
-                      </button>
-                    </form>
-                  ) : (
-                    <form action={addToWishlist.bind(null, dbCourse.id)}>
-                      <button className="w-full border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition text-sm mb-4 cursor-pointer">
-                        Add to wishlist
-                      </button>
-                    </form>
-                  )
-                ) : (
-                  <button className="w-full border border-gray-300 text-gray-400 font-semibold py-3 rounded-xl text-sm mb-4 cursor-not-allowed">
-                    Wishlist for database courses
-                  </button>
-                )}
+                <WishlistButton course={course} initiallyEnrolled={course.enrolled} />
 
                 <p className="text-xs text-gray-400 text-center mb-4">30-day money-back guarantee</p>
                 <ul className="space-y-2 text-xs text-gray-600">
