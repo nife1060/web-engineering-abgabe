@@ -57,6 +57,8 @@ npx prisma generate
 npx prisma migrate dev --name add_learning_wishlist_subscription
 npm run dev
 
+
+aktuellste 20.05.2026 17:49 befehle damit es läuft:
 npm install
 npx prisma generate
 npm run dev
