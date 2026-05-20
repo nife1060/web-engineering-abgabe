@@ -6,8 +6,8 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "LearnHub – Learn Anything, Teach Anyone",
-  description: "A course platform to create, sell, and consume online courses.",
+  title: "Learnify",
+  description: "Create and learn online courses with Learnify.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

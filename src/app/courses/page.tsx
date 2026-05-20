@@ -1,10 +1,63 @@
 import CourseCard from "@/components/CourseCard";
 import { mockCourses } from "@/lib/data";
+import { ensureDefaultCategories } from "@/lib/categories";
+import { prisma } from "@/lib/prisma";
 
-const categories = ["All", "Web Development", "Frontend", "Backend", "Data Science", "Design"];
 const levels = ["All Levels", "Beginner", "Intermediate", "Advanced"];
 
-export default function CoursesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function CoursesPage() {
+  const [categories, publishedCourses] = await Promise.all([
+    ensureDefaultCategories(),
+    prisma.course.findMany({
+      where: { status: "PUBLISHED" },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        creator: {
+          select: { name: true },
+        },
+        modules: {
+          orderBy: { order: "asc" },
+          include: {
+            lessons: {
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const dbCourses = publishedCourses.map((course) => ({
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    instructor: course.creator.name,
+    price: course.price,
+    subscriptionPrice: course.subscriptionPrice,
+    pricingModel: course.pricingModel,
+    rating: 4.8,
+    studentsCount: 0,
+    category: course.categoryName,
+    level: course.level as "Beginner" | "Intermediate" | "Advanced",
+    thumbnail: course.thumbnailUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=225&fit=crop",
+    enrolled: false,
+    modules: course.modules.map((module) => ({
+      id: module.id,
+      title: module.title,
+      lessons: module.lessons.map((lesson) => ({
+        id: lesson.id,
+        title: lesson.title,
+        duration: lesson.type === "VIDEO" ? "Video" : lesson.type === "QUIZ" ? "Quiz" : "Text",
+        type: lesson.type === "VIDEO" ? "video" as const : "text" as const,
+        completed: false,
+      })),
+    })),
+  }));
+  const courses = [...dbCourses, ...mockCourses];
+  const categoryLabels = ["All", ...categories.map((category) => category.name)];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="mb-8">
@@ -33,7 +86,7 @@ export default function CoursesPage() {
             <div>
               <h3 className="font-bold text-gray-900 mb-3 text-sm">Category</h3>
               <div className="space-y-2">
-                {categories.map((cat, i) => (
+                {categoryLabels.map((cat, i) => (
                   <label key={cat} className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="category" defaultChecked={i === 0} className="text-purple-600" />
                     <span className="text-sm text-gray-700">{cat}</span>
@@ -83,7 +136,7 @@ export default function CoursesPage() {
         {/* Course Grid */}
         <div className="flex-1">
           <div className="flex items-center justify-between mb-5">
-            <p className="text-sm text-gray-500">{mockCourses.length} courses found</p>
+            <p className="text-sm text-gray-500">{courses.length} courses found</p>
             <select className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
               <option>Most Popular</option>
               <option>Highest Rated</option>
@@ -94,7 +147,7 @@ export default function CoursesPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-            {mockCourses.map((course) => (
+            {courses.map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>

@@ -1,0 +1,136 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  ADMIN
+  CREATOR
+  USER
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum LessonType {
+  VIDEO
+  TEXT
+  QUIZ
+}
+
+enum PricingModel {
+  PAID
+  FREE
+  SUBSCRIPTION
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  courses   Course[]
+  progress  Progress[]
+  wishlist  Wishlist[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  courses   Course[]
+}
+
+model Course {
+  id            String       @id @default(cuid())
+  title         String
+  description   String
+  categoryId    String?
+  categoryName  String
+  level         String       @default("Beginner")
+  language      String       @default("English")
+  pricingModel  PricingModel @default(PAID)
+  price         Float        @default(0)
+  subscriptionPrice Float    @default(0)
+  thumbnailUrl  String?
+  promoVideoUrl String?
+  status        CourseStatus @default(DRAFT)
+  creatorId     String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  creator  User      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  modules  Module[]
+  wishlistedBy Wishlist[]
+
+  @@index([creatorId])
+  @@index([status])
+}
+
+model Module {
+  id       String   @id @default(cuid())
+  title    String
+  order    Int
+  courseId String
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id       String     @id @default(cuid())
+  title    String
+  content  String     @default("")
+  type     LessonType @default(VIDEO)
+  videoUrl String?
+  order    Int
+  moduleId String
+
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress Progress[]
+
+  @@index([moduleId])
+}
+
+model Progress {
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([lessonId])
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId])
+}

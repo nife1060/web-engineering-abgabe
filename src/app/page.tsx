@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import CourseCard from "@/components/CourseCard";
 import { mockCourses } from "@/lib/data";
 
@@ -13,7 +14,7 @@ const features = [
 
 const testimonials = [
   { name: "Maria S.", role: "Frontend Developer", text: "I landed my first dev job after completing the Web Development Bootcamp. The quality is incredible.", avatar: "MS" },
-  { name: "Tom K.", role: "Course Creator", text: "I published my first course in a weekend. LearnHub makes it so easy to share your knowledge.", avatar: "TK" },
+  { name: "Tom K.", role: "Course Creator", text: "I published my first course in a weekend. Learnify makes it so easy to share your knowledge.", avatar: "TK" },
   { name: "Jana R.", role: "UX Designer", text: "The structured learning path helped me transition careers. Worth every cent.", avatar: "JR" },
 ];
 
@@ -59,7 +60,7 @@ export default function Home() {
               <span className="text-purple-300">Teach anyone.</span>
             </h1>
             <p className="text-lg text-purple-100 mb-8 max-w-xl mx-auto lg:mx-0">
-              Join thousands of learners and creators on LearnHub — the platform that makes it
+              Join thousands of learners and creators on Learnify — the platform that makes it
               simple to discover, create, and sell online courses.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -99,7 +100,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <h2 className="text-3xl font-extrabold text-gray-900 mb-4">Everything you need to learn and earn</h2>
-            <p className="text-gray-500 max-w-xl mx-auto">LearnHub brings together learners and creators in one powerful, easy-to-use platform.</p>
+            <p className="text-gray-500 max-w-xl mx-auto">Learnify brings together learners and creators in one powerful, easy-to-use platform.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((f) => (
@@ -138,7 +139,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {testimonials.map((t) => (
               <div key={t.name} className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                <p className="text-gray-600 text-sm leading-relaxed mb-5">"{t.text}"</p>
+                <p className="text-gray-600 text-sm leading-relaxed mb-5">&quot;{t.text}&quot;</p>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center text-white font-bold text-sm">{t.avatar}</div>
                   <div>
@@ -190,7 +191,7 @@ export default function Home() {
       <section className="bg-purple-700 py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to start your journey?</h2>
-          <p className="text-purple-200 mb-8 text-lg">Join over 12,000 learners already on LearnHub. Sign up free today.</p>
+          <p className="text-purple-200 mb-8 text-lg">Join over 12,000 learners already on Learnify. Sign up free today.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register" className="bg-white text-purple-700 font-bold px-8 py-4 rounded-xl hover:bg-purple-50 transition text-lg">Sign up free</Link>
             <Link href="/courses" className="border border-white/40 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/10 transition text-lg">Browse courses</Link>
@@ -204,10 +205,8 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between gap-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 bg-purple-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">L</span>
-                </div>
-                <span className="font-bold text-white text-lg">LearnHub</span>
+                <Image src="/logo.png" alt="Learnify logo" width={36} height={36} className="h-9 w-9 object-contain" />
+                <span className="font-bold text-white text-lg">Learnify</span>
               </div>
               <p className="text-sm max-w-xs">The SaaS course platform for modern learners and creators.</p>
             </div>
@@ -216,7 +215,7 @@ export default function Home() {
                 <h4 className="font-semibold text-white mb-3">Platform</h4>
                 <ul className="space-y-2">
                   <li><Link href="/courses" className="hover:text-white transition">Browse Courses</Link></li>
-                  <li><Link href="/creator" className="hover:text-white transition">Teach on LearnHub</Link></li>
+                  <li><Link href="/creator" className="hover:text-white transition">Teach on Learnify</Link></li>
                   <li><Link href="#pricing" className="hover:text-white transition">Pricing</Link></li>
                 </ul>
               </div>
@@ -239,7 +238,7 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-10 pt-6 border-t border-gray-800 text-xs text-center">
-            © {new Date().getFullYear()} LearnHub. This is a prototype / preview website — features and content are not final.
+            © {new Date().getFullYear()} Learnify. This is a prototype / preview website — features and content are not final.
           </div>
         </div>
       </footer>

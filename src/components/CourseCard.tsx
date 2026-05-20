@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Course } from "@/lib/data";
+import { formatCoursePrice } from "@/lib/course-format";
 
 interface Props {
   course: Course;
@@ -9,6 +10,7 @@ interface Props {
 const cardClass = "group block bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-200";
 
 export default function CourseCard({ course, showProgress }: Props) {
+  const priceLabel = formatCoursePrice(course.pricingModel ?? "PAID", course.price, course.subscriptionPrice ?? 0);
   const inner = (
     <>
       <div className="relative h-44 bg-gray-200 overflow-hidden">
@@ -44,13 +46,13 @@ export default function CourseCard({ course, showProgress }: Props) {
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1">
-              <span className="text-yellow-400 text-sm">★</span>
+              <span className="text-yellow-400 text-sm">Star</span>
               <span className="text-sm font-bold text-gray-800">{course.rating}</span>
               <span className="text-xs text-gray-400">({course.studentsCount.toLocaleString()})</span>
             </div>
-            <span className="font-bold text-gray-900">€{course.price}</span>
+            <span className="font-bold text-gray-900 text-right">{priceLabel}</span>
           </div>
         )}
       </div>
@@ -63,7 +65,7 @@ export default function CourseCard({ course, showProgress }: Props) {
         {inner}
         <div className="px-4 pb-4">
           <Link
-            href={`/learn/${course.id}/l1`}
+            href={`/learn/${course.id}`}
             className="block text-center text-xs font-semibold text-purple-600 border border-purple-600 rounded-lg py-2 hover:bg-purple-50 transition"
           >
             Continue Learning

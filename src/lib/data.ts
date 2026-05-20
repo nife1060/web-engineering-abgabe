@@ -28,6 +28,8 @@ export interface Course {
   description: string;
   instructor: string;
   price: number;
+  subscriptionPrice?: number;
+  pricingModel?: "PAID" | "FREE" | "SUBSCRIPTION";
   rating: number;
   studentsCount: number;
   category: string;
