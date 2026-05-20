@@ -38,8 +38,8 @@ export default async function CreatorCoursesPage() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Link href="/wishlist" className="bg-white border border-gray-300 text-gray-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-50 transition text-sm">
-            My Wishlist
+          <Link href="/mylearning" className="bg-white border border-gray-300 text-gray-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-50 transition text-sm">
+            My Learning
           </Link>
           <Link href="/creator/courses/new" className="bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-purple-700 transition text-sm">
             + New Course

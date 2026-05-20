@@ -27,7 +27,7 @@ export async function addToWishlist(courseId: string) {
   });
 
   revalidatePath(`/courses/${courseId}`);
-  revalidatePath("/wishlist");
+  revalidatePath("/mylearning");
 }
 
 export async function removeFromWishlist(courseId: string) {
@@ -45,7 +45,7 @@ export async function removeFromWishlist(courseId: string) {
   });
 
   revalidatePath(`/courses/${courseId}`);
-  revalidatePath("/wishlist");
+  revalidatePath("/mylearning");
 }
 
 export async function markLessonCompleted(courseId: string, lessonId: string) {

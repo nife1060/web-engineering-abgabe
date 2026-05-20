@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function WishlistPage() {
+export default async function MyLearningPage() {
   const session = await getSession();
 
   if (!session) {
@@ -36,7 +36,7 @@ export default async function WishlistPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900">My Wishlist</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900">My Learning</h1>
           <p className="text-gray-500 mt-1">Kurse, die du dir fuer spaeter gemerkt hast.</p>
         </div>
         <Link href="/courses" className="bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-purple-700 transition text-sm">
@@ -46,7 +46,7 @@ export default async function WishlistPage() {
 
       {wishlist.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
-          <h2 className="font-bold text-gray-900 text-lg mb-2">Du hast noch keine Kurse in deiner Wishlist.</h2>
+          <h2 className="font-bold text-gray-900 text-lg mb-2">Du hast noch keine Kurse in My Learning.</h2>
           <p className="text-gray-500 text-sm mb-5">Stoeber in der Kursuebersicht und merke dir interessante Kurse.</p>
           <Link href="/courses" className="bg-purple-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-purple-700 transition text-sm">
             Kurse ansehen

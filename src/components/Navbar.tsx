@@ -12,7 +12,7 @@ export default async function Navbar() {
 
   const links = [
     { href: "/courses", label: "Browse Courses", show: Boolean(role) },
-    { href: "/wishlist", label: "My Wishlist", show: Boolean(role) },
+    { href: "/mylearning", label: "My Learning", show: Boolean(role) },
     { href: "/dashboard", label: "Dashboard", show: role === "CREATOR" || role === "ADMIN" },
     { href: "/dashboard/courses", label: "Meine Kurse", show: role === "CREATOR" || role === "ADMIN" },
     { href: "/admin", label: "Admin", show: role === "ADMIN" },
