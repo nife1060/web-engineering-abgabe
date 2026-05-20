@@ -14,18 +14,7 @@ export default function DashboardPage() {
   const overallProgress = Math.round((completedLessons / totalLessons) * 100);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold text-gray-900">My Learning</h1>
-          <p className="text-gray-500 mt-1">Welcome back! Pick up where you left off.</p>
-        </div>
-        <Link href="/courses" className="bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-purple-700 transition text-sm">
-          Browse more courses
-        </Link>
-      </div>
-
+    <>
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
         {[
@@ -34,11 +23,28 @@ export default function DashboardPage() {
           { label: "Overall Progress", value: `${overallProgress}%`, icon: "📊" },
           { label: "Certificates", value: 0, icon: "🏆" },
         ].map((stat) => (
-          <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-5">
-            <div className="text-2xl mb-2">{stat.icon}</div>
-            <div className="text-2xl font-extrabold text-gray-900">{stat.value}</div>
-            <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
-          </div>
+          stat.label === "Lessons Completed" ? (
+            <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="text-sm font-semibold text-gray-500">Week</div>
+              <div className="text-lg font-bold text-gray-900 mt-1">18-25.Mai</div>
+              <div className="flex items-center gap-4 mt-4">
+                <div className="flex-1 p-3 bg-green-200 rounded-lg text-center">
+                  <div className="text-xs text-green-700">Site Visits</div>
+                  <div className="text-lg font-extrabold text-green-900">8</div>
+                </div>
+                <div className="flex-1 p-3 bg-green-200 rounded-lg text-center">
+                  <div className="text-xs text-green-700">Lessons Completed</div>
+                  <div className="text-lg font-extrabold text-green-900">6</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-5">
+              <div className="text-2xl mb-2">{stat.icon}</div>
+              <div className="text-2xl font-extrabold text-gray-900">{stat.value}</div>
+              <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
+            </div>
+          )
         ))}
       </div>
 
@@ -95,6 +101,6 @@ export default function DashboardPage() {
           ))}
         </div>
       </section>
-    </div>
+    </>
   );
 }

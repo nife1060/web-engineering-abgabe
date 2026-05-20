@@ -2,17 +2,36 @@ import Link from "next/link";
 import { mockCourses } from "@/lib/data";
 import { notFound } from "next/navigation";
 
-export default function CourseDetailPage({ params }: { params: { id: string } }) {
-  const course = mockCourses.find((c) => c.id === params.id);
+export default async function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const course = mockCourses.find((c) => c.id === id);
   if (!course) return notFound();
 
   const totalLessons = course.modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const firstLessonId = course.modules[0]?.lessons[0]?.id;
+  const courseTabs = ["Overview", "Content", "Reviews", "Certificates"];
 
   return (
     <div className="bg-gray-50 min-h-screen">
+      {/* Course Task Bar */}
+      <div className="sticky top-16 z-40 bg-white border-b border-gray-200 shadow-sm">
+        <nav aria-label="Course sections" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-x-auto">
+          <div className="flex min-w-max gap-1">
+            {courseTabs.map((tab) => (
+              <a
+                key={tab}
+                href={`#${tab.toLowerCase()}`}
+                className="px-4 py-3 text-sm font-semibold text-gray-600 border-b-2 border-transparent hover:text-purple-700 hover:border-purple-300 transition"
+              >
+                {tab}
+              </a>
+            ))}
+          </div>
+        </nav>
+      </div>
+
       {/* Course Hero */}
-      <div className="bg-gray-900 text-white">
+      <div id="overview" className="bg-gray-900 text-white scroll-mt-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col lg:flex-row gap-8">
           <div className="flex-1">
             <p className="text-purple-400 text-sm font-semibold uppercase tracking-wide mb-3">
@@ -88,8 +107,8 @@ export default function CourseDetailPage({ params }: { params: { id: string } })
       </div>
 
       {/* Course Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="max-w-2xl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+        <div id="content" className="max-w-2xl scroll-mt-32">
           <h2 className="text-xl font-bold text-gray-900 mb-5">Course Content</h2>
           <div className="space-y-3">
             {course.modules.map((module, mi) => (
@@ -128,6 +147,28 @@ export default function CourseDetailPage({ params }: { params: { id: string } })
             ))}
           </div>
         </div>
+
+        <section id="reviews" className="max-w-2xl scroll-mt-32">
+          <h2 className="text-xl font-bold text-gray-900 mb-3">Reviews</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-2xl font-extrabold text-gray-900">{course.rating}</span>
+              <span className="text-sm font-semibold text-yellow-500">out of 5</span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Rated by learners across {course.studentsCount.toLocaleString()} enrolled students.
+            </p>
+          </div>
+        </section>
+
+        <section id="certificates" className="max-w-2xl scroll-mt-32">
+          <h2 className="text-xl font-bold text-gray-900 mb-3">Certificates</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-5">
+            <p className="text-sm text-gray-600">
+              Complete all lessons to receive a certificate of completion for this course.
+            </p>
+          </div>
+        </section>
       </div>
     </div>
   );

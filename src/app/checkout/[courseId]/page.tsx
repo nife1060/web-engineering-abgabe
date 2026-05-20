@@ -2,8 +2,9 @@ import { mockCourses } from "@/lib/data";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-export default function CheckoutPage({ params }: { params: { courseId: string } }) {
-  const course = mockCourses.find((c) => c.id === params.courseId);
+export default async function CheckoutPage({ params }: { params: Promise<{ courseId: string }> }) {
+  const { courseId } = await params;
+  const course = mockCourses.find((c) => c.id === courseId);
   if (!course) return notFound();
 
   const tax = +(course.price * 0.19).toFixed(2);
