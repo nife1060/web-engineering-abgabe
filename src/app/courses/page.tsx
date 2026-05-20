@@ -76,6 +76,14 @@ function sortCourses(courses: Course[], selectedSort: string) {
     return sortedCourses.sort((a, b) => b.price - a.price);
   }
 
+  if (selectedSort === "title-asc") {
+    return sortedCourses.sort((a, b) => a.title.localeCompare(b.title));
+  }
+
+  if (selectedSort === "title-desc") {
+    return sortedCourses.sort((a, b) => b.title.localeCompare(a.title));
+  }
+
   return sortedCourses.sort((a, b) => b.studentsCount - a.studentsCount);
 }
 
