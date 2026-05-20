@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { addToWishlist, removeFromWishlist } from "@/app/actions/course-interactions";
+import EnrollmentButton from "@/components/EnrollmentButton";
 import { courseCtaLabel, formatCoursePrice } from "@/lib/course-format";
 import { getSession } from "@/lib/auth";
 import { mockCourses } from "@/lib/data";
@@ -61,7 +62,7 @@ export default async function CourseDetailPage({ params }: Props) {
       rating: 4.8,
       studentsCount: 0,
       instructor: dbCourse.creator.name,
-      level: dbCourse.level,
+      level: dbCourse.level as "Beginner" | "Intermediate" | "Advanced",
       pricingModel: dbCourse.pricingModel,
       price: dbCourse.price,
       subscriptionPrice: dbCourse.subscriptionPrice,
@@ -74,7 +75,7 @@ export default async function CourseDetailPage({ params }: Props) {
           id: lesson.id,
           title: lesson.title,
           duration: lesson.type === "VIDEO" ? "Video" : lesson.type === "QUIZ" ? "Quiz" : "Text",
-          type: lesson.type === "VIDEO" ? "video" : "text",
+          type: lesson.type === "VIDEO" ? ("video" as const) : ("text" as const),
         })),
       })),
     });
@@ -134,12 +135,14 @@ export default async function CourseDetailPage({ params }: Props) {
                   <span className="text-2xl font-extrabold text-gray-900">{priceLabel}</span>
                 </div>
 
-                <Link
-                  href={`/learn/${course.id}`}
-                  className="block w-full text-center bg-purple-600 text-white font-bold py-3.5 rounded-xl hover:bg-purple-700 transition mb-3"
-                >
-                  {ctaLabel}
-                </Link>
+                <EnrollmentButton
+                  course={course}
+                  label={ctaLabel}
+                  learnHref={`/learn/${course.id}`}
+                  enrolledHref={dbCourse ? `/learn/${course.id}` : `/courses/${course.id}`}
+                  enrolledLabel={dbCourse ? "Continue Learning" : "Go to Course"}
+                  initiallyEnrolled={course.enrolled}
+                />
 
                 <div className="border border-gray-100 rounded-xl p-4 mb-4 bg-gray-50">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Course includes</p>
