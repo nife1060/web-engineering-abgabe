@@ -1,6 +1,5 @@
-import Link from "next/link";
 import CourseCard from "@/components/CourseCard";
-import SortSelect from "@/components/SortSelect";
+import CoursesFilterForm from "@/components/CoursesFilterForm";
 import { Course, mockCourses } from "@/lib/data";
 import { ensureDefaultCategories } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
@@ -170,120 +169,22 @@ export default async function CoursesPage({
         <p className="text-gray-500">Discover your next skill from our library of expert-led courses</p>
       </div>
 
-      <form action="/courses" className="flex flex-col lg:flex-row gap-8">
-        <aside className="w-full lg:w-64 shrink-0">
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-6">
-            <div>
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">Search</h3>
-              <div className="relative">
-                <input
-                  type="text"
-                  name="query"
-                  defaultValue={query}
-                  placeholder="Search courses..."
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <svg className="absolute left-3 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">Category</h3>
-              <div className="space-y-2">
-                {categoryLabels.map((cat) => (
-                  <label key={cat} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="category"
-                      value={cat}
-                      defaultChecked={selectedCategory === cat}
-                      className="text-purple-600"
-                    />
-                    <span className="text-sm text-gray-700">{cat}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">Level</h3>
-              <div className="space-y-2">
-                {levels.map((level) => (
-                  <label key={level} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="level"
-                      value={level}
-                      defaultChecked={selectedLevel === level}
-                      className="text-purple-600"
-                    />
-                    <span className="text-sm text-gray-700">{level}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">Price Range</h3>
-              <div className="space-y-2">
-                {priceRanges.map((price) => (
-                  <label key={price.value} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="price"
-                      value={price.value}
-                      defaultChecked={selectedPrice === price.value}
-                      className="text-purple-600"
-                    />
-                    <span className="text-sm text-gray-700">{price.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-gray-900 mb-3 text-sm">Min. Rating</h3>
-              <div className="space-y-2">
-                {ratingFilters.map((r) => (
-                  <label key={r} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="rating"
-                      value={r}
-                      defaultChecked={selectedRating === r}
-                      className="text-purple-600"
-                    />
-                    <span className="text-sm text-gray-700">{r === "Any" ? r : `Rating ${r}`}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                type="submit"
-                className="flex-1 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700 transition"
-              >
-                Apply
-              </button>
-              <Link
-                href="/courses"
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
-              >
-                Reset
-              </Link>
-            </div>
-          </div>
-        </aside>
-
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-5">
-            <p className="text-sm text-gray-500">{filteredCourses.length} courses found</p>
-            <SortSelect selectedSort={selectedSort} />
-          </div>
-
+      <CoursesFilterForm
+        categoryLabels={categoryLabels}
+        levels={levels}
+        priceRanges={priceRanges}
+        ratingFilters={ratingFilters}
+        initialFilters={{
+          query,
+          category: selectedCategory,
+          level: selectedLevel,
+          price: selectedPrice,
+          rating: selectedRating,
+          sort: selectedSort,
+        }}
+        resultsCount={filteredCourses.length}
+      >
+        <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {filteredCourses.map((course) => (
               <CourseCard key={course.id} course={course} />
@@ -295,8 +196,8 @@ export default async function CoursesPage({
               <p className="mt-1 text-sm text-gray-500">Try a broader search or reset the filters.</p>
             </div>
           ) : null}
-        </div>
-      </form>
+        </>
+      </CoursesFilterForm>
     </div>
   );
 }
