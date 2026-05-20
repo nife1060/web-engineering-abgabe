@@ -15,7 +15,9 @@ type MyLearningLocalContentProps = {
   activeTab: string;
   activeCourseStatus: string;
   completedLessons: number;
+  completedLessonIds: string[];
   baseEnrolledCourses: Course[];
+  availableCourses: Course[];
   recommendedCourses: Course[];
 };
 
@@ -126,7 +128,9 @@ export default function MyLearningLocalContent({
   activeTab,
   activeCourseStatus,
   completedLessons,
+  completedLessonIds,
   baseEnrolledCourses,
+  availableCourses,
   recommendedCourses,
 }: MyLearningLocalContentProps) {
   const [storedEnrollments, setStoredEnrollments] = useState<StoredEnrollment[]>([]);
@@ -153,21 +157,42 @@ export default function MyLearningLocalContent({
 
   const enrolledCourses = useMemo(() => {
     const courses = new Map<string, Course>();
+    const availableCourseById = new Map(availableCourses.map((course) => [course.id, course]));
+    const completedLessonIdSet = new Set(completedLessonIds);
+    const syncProgress = (course: Course) => {
+      const lessons = course.modules.flatMap((module) => module.lessons);
+      const completedCount = lessons.filter((lesson) => completedLessonIdSet.has(lesson.id) || lesson.completed).length;
+      const syncedProgress = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : course.progress ?? 0;
+
+      return {
+        ...course,
+        modules: course.modules.map((module) => ({
+          ...module,
+          lessons: module.lessons.map((lesson) => ({
+            ...lesson,
+            completed: completedLessonIdSet.has(lesson.id) || lesson.completed,
+          })),
+        })),
+        progress: lessons.length > 0 ? syncedProgress : course.progress ?? 0,
+      };
+    };
 
     for (const course of baseEnrolledCourses) {
-      courses.set(course.id, course);
+      courses.set(course.id, syncProgress(course));
     }
 
     for (const enrollment of storedEnrollments) {
-      courses.set(enrollment.course.id, {
-        ...enrollment.course,
+      const currentCourse = availableCourseById.get(enrollment.course.id) ?? enrollment.course;
+
+      courses.set(enrollment.course.id, syncProgress({
+        ...currentCourse,
         enrolled: true,
         progress: enrollment.progress,
-      });
+      }));
     }
 
     return Array.from(courses.values());
-  }, [baseEnrolledCourses, storedEnrollments]);
+  }, [availableCourses, baseEnrolledCourses, completedLessonIds, storedEnrollments]);
 
   const myCourses =
     activeCourseStatus === "in-progress"

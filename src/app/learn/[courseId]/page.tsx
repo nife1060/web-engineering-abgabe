@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { markLessonCompleted } from "@/app/actions/course-interactions";
+import { markLessonCompleted, markLessonStillWorking } from "@/app/actions/course-interactions";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -94,6 +94,7 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
   const currentIndex = lessons.findIndex((lesson) => lesson.id === currentLesson.id);
   const nextLesson = lessons[currentIndex + 1];
   const youtubeEmbedUrl = getYouTubeEmbedUrl(currentLesson.videoUrl);
+  const isCurrentLessonCompleted = completedLessonIds.has(currentLesson.id);
 
   return (
     <div className="bg-gray-50 min-h-[calc(100vh-64px)]">
@@ -207,7 +208,7 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
                   <h2 className="text-2xl font-extrabold text-gray-900">{currentLesson.title}</h2>
                   <p className="text-sm text-gray-500 mt-1">Lesson-Type: {currentLesson.type}</p>
                 </div>
-                {completedLessonIds.has(currentLesson.id) && (
+                {isCurrentLessonCompleted && (
                   <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full">
                     Completed
                   </span>
@@ -219,9 +220,12 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <form action={markLessonCompleted.bind(null, course.id, currentLesson.id)} className="flex-1">
+                <form
+                  action={(isCurrentLessonCompleted ? markLessonStillWorking : markLessonCompleted).bind(null, course.id, currentLesson.id)}
+                  className="flex-1"
+                >
                   <button className="w-full bg-purple-600 text-white font-semibold py-3 rounded-xl hover:bg-purple-700 transition text-sm">
-                    Mark as completed
+                    {isCurrentLessonCompleted ? "Mark as still working" : "Mark as complete"}
                   </button>
                 </form>
                 {nextLesson ? (

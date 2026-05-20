@@ -51,16 +51,67 @@ export default async function MyLearningPage({
     ? requestedCourseStatus
     : "all";
 
-  const completedLessons = await prisma.progress.count({
+  const [completedProgress, publishedCourses] = await Promise.all([
+    prisma.progress.findMany({
       where: {
         userId: session.userId,
         completed: true,
       },
-    });
+      select: {
+        lessonId: true,
+      },
+    }),
+    prisma.course.findMany({
+      where: { status: "PUBLISHED" },
+      include: {
+        creator: {
+          select: { name: true },
+        },
+        modules: {
+          orderBy: { order: "asc" },
+          include: {
+            lessons: {
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+  const completedLessonIds = completedProgress.map((progress) => progress.lessonId);
+  const dbCourses = publishedCourses.map((course) => ({
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    instructor: course.creator.name,
+    price: course.price,
+    subscriptionPrice: course.subscriptionPrice,
+    pricingModel: course.pricingModel,
+    rating: 4.8,
+    studentsCount: 0,
+    category: course.categoryName,
+    level: course.level as "Beginner" | "Intermediate" | "Advanced",
+    thumbnail:
+      course.thumbnailUrl ||
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=225&fit=crop",
+    enrolled: false,
+    modules: course.modules.map((module) => ({
+      id: module.id,
+      title: module.title,
+      lessons: module.lessons.map((lesson) => ({
+        id: lesson.id,
+        title: lesson.title,
+        duration: lesson.type === "VIDEO" ? "Video" : lesson.type === "QUIZ" ? "Quiz" : "Text",
+        type: lesson.type === "VIDEO" ? ("video" as const) : ("text" as const),
+        completed: false,
+      })),
+    })),
+  }));
+  const availableCourses = [...dbCourses, ...mockCourses];
 
   const continueLearningCourses = mockCourses.filter((course) => course.enrolled).slice(0, 2);
   const recommendedCourses = mockCourses.filter((course) => !course.enrolled).slice(0, 3);
-  const lessonsCompleted = completedLessons || 6;
+  const lessonsCompleted = completedLessonIds.length || 6;
 
   return (
     <div className="bg-gray-50 min-h-[calc(100vh-64px)]">
@@ -102,7 +153,9 @@ export default async function MyLearningPage({
           activeTab={activeTab}
           activeCourseStatus={activeCourseStatus}
           completedLessons={lessonsCompleted}
+          completedLessonIds={completedLessonIds}
           baseEnrolledCourses={continueLearningCourses}
+          availableCourses={availableCourses}
           recommendedCourses={recommendedCourses}
         />
 

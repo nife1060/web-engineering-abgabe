@@ -33,3 +33,32 @@ export async function markLessonCompleted(courseId: string, lessonId: string) {
 
   revalidatePath(`/learn/${courseId}`);
 }
+
+export async function markLessonStillWorking(courseId: string, lessonId: string) {
+  const session = await getSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  await prisma.progress.upsert({
+    where: {
+      userId_lessonId: {
+        userId: session.userId,
+        lessonId,
+      },
+    },
+    update: {
+      completed: false,
+      completedAt: null,
+    },
+    create: {
+      userId: session.userId,
+      lessonId,
+      completed: false,
+      completedAt: null,
+    },
+  });
+
+  revalidatePath(`/learn/${courseId}`);
+}
