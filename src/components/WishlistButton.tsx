@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { Course } from "@/lib/data";
 import {
-  readStoredEnrollments,
   readStoredWishlistCourses,
   removeCourseFromStoredWishlist,
   writeStoredWishlistCourses,
@@ -15,15 +14,10 @@ type WishlistButtonProps = {
 };
 
 export default function WishlistButton({ course, initiallyEnrolled = false }: WishlistButtonProps) {
-  const [isEnrolled, setIsEnrolled] = useState(initiallyEnrolled);
   const [isWishlisted, setIsWishlisted] = useState(false);
 
   useEffect(() => {
     const refreshState = () => {
-      setIsEnrolled(
-        initiallyEnrolled ||
-          readStoredEnrollments().some((enrollment) => enrollment.course.id === course.id),
-      );
       setIsWishlisted(
         readStoredWishlistCourses().some((wishlistItem) => wishlistItem.course.id === course.id),
       );
@@ -31,17 +25,15 @@ export default function WishlistButton({ course, initiallyEnrolled = false }: Wi
 
     refreshState();
     window.addEventListener("storage", refreshState);
-    window.addEventListener("learnhub-enrollments-changed", refreshState);
     window.addEventListener("learnhub-wishlist-changed", refreshState);
 
     return () => {
       window.removeEventListener("storage", refreshState);
-      window.removeEventListener("learnhub-enrollments-changed", refreshState);
       window.removeEventListener("learnhub-wishlist-changed", refreshState);
     };
-  }, [course.id, initiallyEnrolled]);
+  }, [course.id]);
 
-  if (isEnrolled) {
+  if (initiallyEnrolled) {
     return (
       <button
         type="button"

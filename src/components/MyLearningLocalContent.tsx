@@ -5,9 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatCoursePrice } from "@/lib/course-format";
 import type { Course } from "@/lib/data";
 import {
-  readStoredEnrollments,
   readStoredWishlistCourses,
-  StoredEnrollment,
   StoredWishlistCourse,
 } from "@/lib/enrollment-storage";
 
@@ -20,8 +18,8 @@ type MyLearningLocalContentProps = {
     lessonId: string;
     completedAt: string | null;
   }[];
-  baseEnrolledCourses: Course[];
-  availableCourses: Course[];
+  enrolledCourses: Course[];
+  enrolledAtByCourseId: Record<string, string>;
   recommendedCourses: Course[];
 };
 
@@ -134,43 +132,32 @@ export default function MyLearningLocalContent({
   completedLessons,
   completedLessonIds,
   completedLessonActivity,
-  baseEnrolledCourses,
-  availableCourses,
+  enrolledCourses,
+  enrolledAtByCourseId,
   recommendedCourses,
 }: MyLearningLocalContentProps) {
-  const [storedEnrollments, setStoredEnrollments] = useState<StoredEnrollment[]>([]);
   const [storedWishlist, setStoredWishlist] = useState<StoredWishlistCourse[]>([]);
 
   useEffect(() => {
-    const refreshEnrollments = () => setStoredEnrollments(readStoredEnrollments());
     const refreshWishlist = () => setStoredWishlist(readStoredWishlistCourses());
 
-    refreshEnrollments();
     refreshWishlist();
-    window.addEventListener("storage", refreshEnrollments);
-    window.addEventListener("learnhub-enrollments-changed", refreshEnrollments);
     window.addEventListener("storage", refreshWishlist);
     window.addEventListener("learnhub-wishlist-changed", refreshWishlist);
 
     return () => {
-      window.removeEventListener("storage", refreshEnrollments);
-      window.removeEventListener("learnhub-enrollments-changed", refreshEnrollments);
       window.removeEventListener("storage", refreshWishlist);
       window.removeEventListener("learnhub-wishlist-changed", refreshWishlist);
     };
   }, []);
 
-  const enrolledCourses = useMemo(() => {
-    const courses = new Map<string, Course>();
-    const availableCourseById = new Map(availableCourses.map((course) => [course.id, course]));
+  const hydratedEnrolledCourses = useMemo(() => {
     const completedLessonIdSet = new Set(completedLessonIds);
-    const sortedStoredEnrollments = [...storedEnrollments].sort(
-      (a, b) => new Date(b.enrolledAt).getTime() - new Date(a.enrolledAt).getTime(),
-    );
-    const syncProgress = (course: Course) => {
+
+    return enrolledCourses.map((course) => {
       const lessons = course.modules.flatMap((module) => module.lessons);
-      const completedCount = lessons.filter((lesson) => completedLessonIdSet.has(lesson.id) || lesson.completed).length;
-      const syncedProgress = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : course.progress ?? 0;
+      const completedCount = lessons.filter((lesson) => completedLessonIdSet.has(lesson.id)).length;
+      const progress = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
 
       return {
         ...course,
@@ -178,52 +165,44 @@ export default function MyLearningLocalContent({
           ...module,
           lessons: module.lessons.map((lesson) => ({
             ...lesson,
-            completed: completedLessonIdSet.has(lesson.id) || lesson.completed,
+            completed: completedLessonIdSet.has(lesson.id),
           })),
         })),
-        progress: lessons.length > 0 ? syncedProgress : course.progress ?? 0,
+        progress,
       };
-    };
-
-    for (const enrollment of sortedStoredEnrollments) {
-      const currentCourse = availableCourseById.get(enrollment.course.id) ?? enrollment.course;
-
-      courses.set(enrollment.course.id, syncProgress({
-        ...currentCourse,
-        enrolled: true,
-        progress: enrollment.progress,
-      }));
-    }
-
-    for (const course of baseEnrolledCourses) {
-      if (!courses.has(course.id)) {
-        courses.set(course.id, syncProgress(course));
-      }
-    }
-
-    return Array.from(courses.values());
-  }, [availableCourses, baseEnrolledCourses, completedLessonIds, storedEnrollments]);
+    });
+  }, [enrolledCourses, completedLessonIds]);
 
   const myCourses =
     activeCourseStatus === "in-progress"
-      ? enrolledCourses.filter((course) => (course.progress ?? 0) < 100)
+      ? hydratedEnrolledCourses.filter((course) => (course.progress ?? 0) < 100)
       : activeCourseStatus === "completed"
-        ? enrolledCourses.filter((course) => (course.progress ?? 0) >= 100)
-        : enrolledCourses;
-  const continueLearningCourses = enrolledCourses;
-  const enrolledCount = enrolledCourses.length;
+        ? hydratedEnrolledCourses.filter((course) => (course.progress ?? 0) >= 100)
+        : hydratedEnrolledCourses;
+  const enrolledCount = hydratedEnrolledCourses.length;
   const overallProgress =
     enrolledCount > 0
-      ? Math.round(enrolledCourses.reduce((total, course) => total + (course.progress ?? 0), 0) / enrolledCount)
+      ? Math.round(
+          hydratedEnrolledCourses.reduce((total, course) => total + (course.progress ?? 0), 0) /
+            enrolledCount,
+        )
       : 0;
-  const recommendedCourseList = recommendedCourses.filter(
-    (course) => !enrolledCourses.some((enrolledCourse) => enrolledCourse.id === course.id),
-  );
+  const enrolledIdSet = new Set(hydratedEnrolledCourses.map((course) => course.id));
+  const recommendedCourseList = recommendedCourses.filter((course) => !enrolledIdSet.has(course.id));
   const wishlistCourses = storedWishlist
     .map((wishlistItem) => wishlistItem.course)
-    .filter((course) => !enrolledCourses.some((enrolledCourse) => enrolledCourse.id === course.id));
-  const latestEnrollment = storedEnrollments[0];
-  const completionActivities = enrolledCourses
+    .filter((course) => !enrolledIdSet.has(course.id));
+
+  type HydratedCourse = (typeof hydratedEnrolledCourses)[number];
+  const latestEnrollment = hydratedEnrolledCourses
+    .map((course) => {
+      const enrolledAt = enrolledAtByCourseId[course.id];
+      return enrolledAt ? { course, enrolledAt } : null;
+    })
+    .filter((entry): entry is { course: HydratedCourse; enrolledAt: string } => entry !== null)
+    .sort((a, b) => new Date(b.enrolledAt).getTime() - new Date(a.enrolledAt).getTime())[0];
+
+  const completionActivities = hydratedEnrolledCourses
     .map((course) => {
       const lessonIds = new Set(course.modules.flatMap((module) => module.lessons.map((lesson) => lesson.id)));
       const completedLessonsInCourse = completedLessonActivity.filter((progress) => lessonIds.has(progress.lessonId));
@@ -257,18 +236,6 @@ export default function MyLearningLocalContent({
           marker: "New",
         }
       : null,
-    {
-      title: 'Completed Lesson: "HTML Structure & Tags"',
-      course: "Web Development Bootcamp",
-      time: "2 hours ago",
-      marker: "OK",
-    },
-    {
-      title: 'Started Lesson: "What is React?"',
-      course: "React & Next.js Masterclass",
-      time: "Yesterday",
-      marker: "Play",
-    },
   ].filter((activity) => activity !== null);
 
   if (activeTab === "my-courses") {
@@ -340,62 +307,60 @@ export default function MyLearningLocalContent({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {[
           { label: "Enrolled Courses", value: enrolledCount },
-          { label: "Week", value: "May 18-25" },
+          { label: "Lessons Completed", value: completedLessons },
           { label: "Overall Progress", value: `${overallProgress}%` },
           { label: "Certificates", value: 0 },
         ].map((stat) => (
           <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-6 min-h-44">
-            {stat.label === "Week" ? (
-              <>
-                <p className="text-sm font-bold text-gray-500">{stat.label}</p>
-                <p className="mt-1 text-xl font-extrabold text-gray-900">{stat.value}</p>
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-green-100 p-3 text-center">
-                    <p className="text-xs text-green-700">Site Visits</p>
-                    <p className="text-lg font-extrabold text-green-800">8</p>
-                  </div>
-                  <div className="rounded-lg bg-green-100 p-3 text-center">
-                    <p className="text-xs text-green-700">Lessons Completed</p>
-                    <p className="text-lg font-extrabold text-green-800">{completedLessons}</p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-3xl font-extrabold text-gray-900">{stat.value}</p>
-                <p className="mt-1 text-sm text-gray-500">{stat.label}</p>
-              </>
-            )}
+            <p className="text-3xl font-extrabold text-gray-900">{stat.value}</p>
+            <p className="mt-1 text-sm text-gray-500">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      <section className="mb-12">
-        <h2 className="text-xl font-extrabold text-gray-900 mb-5">Continue Learning</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {continueLearningCourses.map((course) => (
-            <ProgressCourseCard key={course.id} course={course} />
-          ))}
-        </div>
-      </section>
+      {hydratedEnrolledCourses.length > 0 ? (
+        <section className="mb-12">
+          <h2 className="text-xl font-extrabold text-gray-900 mb-5">Continue Learning</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {hydratedEnrolledCourses.map((course) => (
+              <ProgressCourseCard key={course.id} course={course} />
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section className="mb-12">
+          <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
+            <h2 className="font-bold text-gray-900 text-lg mb-2">No enrolled courses yet.</h2>
+            <p className="text-gray-500 text-sm mb-5">Browse our catalog and pick your first course.</p>
+            <Link
+              href="/courses"
+              className="inline-flex bg-purple-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-purple-700 transition text-sm"
+            >
+              Browse Courses
+            </Link>
+          </div>
+        </section>
+      )}
 
-      <section className="mb-12">
-        <h2 className="text-xl font-extrabold text-gray-900 mb-5">Recent Activity</h2>
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          {recentActivities.map((activity) => (
-            <div key={activity.title} className="flex items-center gap-5 border-b border-gray-100 px-6 py-5 last:border-b-0">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-purple-100 text-[10px] font-extrabold text-purple-700">
-                {activity.marker}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-extrabold text-gray-900">{activity.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{activity.course}</p>
+      {recentActivities.length > 0 ? (
+        <section className="mb-12">
+          <h2 className="text-xl font-extrabold text-gray-900 mb-5">Recent Activity</h2>
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            {recentActivities.map((activity) => (
+              <div key={`${activity.title}-${activity.course}`} className="flex items-center gap-5 border-b border-gray-100 px-6 py-5 last:border-b-0">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-purple-100 text-[10px] font-extrabold text-purple-700">
+                  {activity.marker}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-extrabold text-gray-900">{activity.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{activity.course}</p>
+                </div>
+                <p className="text-xs text-gray-400">{activity.time}</p>
               </div>
-              <p className="text-xs text-gray-400">{activity.time}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section>
         <h2 className="text-xl font-extrabold text-gray-900 mb-5">Recommended for You</h2>

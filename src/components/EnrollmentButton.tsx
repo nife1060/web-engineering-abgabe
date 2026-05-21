@@ -1,52 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { purchaseCourse } from "@/app/actions/checkout";
 import type { Course } from "@/lib/data";
-import {
-  readStoredEnrollments,
-  removeCourseFromStoredWishlist,
-  writeStoredEnrollments,
-} from "@/lib/enrollment-storage";
 
 type EnrollmentButtonProps = {
   course: Course;
   label: string;
-  learnHref: string;
   enrolledHref: string;
   enrolledLabel: string;
   initiallyEnrolled?: boolean;
 };
 
+function SubmitButton({ label }: { label: string }) {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl hover:bg-purple-700 transition mb-3 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+    >
+      {pending ? "Processing…" : label}
+    </button>
+  );
+}
+
 export default function EnrollmentButton({
   course,
   label,
-  learnHref,
   enrolledHref,
   enrolledLabel,
   initiallyEnrolled = false,
 }: EnrollmentButtonProps) {
-  const [isEnrolled, setIsEnrolled] = useState(initiallyEnrolled);
-
-  useEffect(() => {
-    const refreshEnrollment = () => {
-      setIsEnrolled(
-        initiallyEnrolled ||
-          readStoredEnrollments().some((enrollment) => enrollment.course.id === course.id),
-      );
-    };
-
-    refreshEnrollment();
-    window.addEventListener("storage", refreshEnrollment);
-    window.addEventListener("learnhub-enrollments-changed", refreshEnrollment);
-
-    return () => {
-      window.removeEventListener("storage", refreshEnrollment);
-      window.removeEventListener("learnhub-enrollments-changed", refreshEnrollment);
-    };
-  }, [course.id, initiallyEnrolled]);
-
-  if (isEnrolled) {
+  if (initiallyEnrolled) {
     return (
       <Link
         href={enrolledHref}
@@ -58,34 +46,9 @@ export default function EnrollmentButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => {
-        const enrollments = readStoredEnrollments();
-        const isAlreadyEnrolled = enrollments.some((enrollment) => enrollment.course.id === course.id);
-
-        if (!isAlreadyEnrolled) {
-          writeStoredEnrollments([
-            {
-              course: {
-                ...course,
-                enrolled: true,
-                progress: 0,
-              },
-              progress: 0,
-              enrolledAt: new Date().toISOString(),
-            },
-            ...enrollments,
-          ]);
-        }
-
-        removeCourseFromStoredWishlist(course.id);
-        setIsEnrolled(true);
-      }}
-      className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl hover:bg-purple-700 transition mb-3 cursor-pointer"
-      data-learn-href={learnHref}
-    >
-      {label}
-    </button>
+    <form action={purchaseCourse}>
+      <input type="hidden" name="courseId" value={course.id} />
+      <SubmitButton label={label} />
+    </form>
   );
 }

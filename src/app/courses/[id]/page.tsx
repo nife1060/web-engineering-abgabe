@@ -6,6 +6,7 @@ import { courseCtaLabel, formatCoursePrice } from "@/lib/course-format";
 import { getSession } from "@/lib/auth";
 import { mockCourses } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
+import { hasActiveEnrollment } from "@/lib/enrollments";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -40,6 +41,10 @@ export default async function CourseDetailPage({ params }: Props) {
     return notFound();
   }
 
+  const enrolled = await hasActiveEnrollment(session?.userId, id);
+  const isCreatorOrAdmin =
+    !!session && !!dbCourse && (session.role === "ADMIN" || session.userId === dbCourse.creatorId);
+
   const course =
     mockCourse ??
     (dbCourse && {
@@ -54,7 +59,7 @@ export default async function CourseDetailPage({ params }: Props) {
       pricingModel: dbCourse.pricingModel,
       price: dbCourse.price,
       subscriptionPrice: dbCourse.subscriptionPrice,
-      enrolled: false,
+      enrolled,
       thumbnail: dbCourse.thumbnailUrl || "",
       modules: dbCourse.modules.map((module) => ({
         id: module.id,
@@ -126,10 +131,9 @@ export default async function CourseDetailPage({ params }: Props) {
                 <EnrollmentButton
                   course={course}
                   label={ctaLabel}
-                  learnHref={`/learn/${course.id}`}
                   enrolledHref={dbCourse ? `/learn/${course.id}` : `/courses/${course.id}`}
                   enrolledLabel={dbCourse ? "Continue Learning" : "Go to Course"}
-                  initiallyEnrolled={course.enrolled}
+                  initiallyEnrolled={enrolled || isCreatorOrAdmin}
                 />
 
                 <div className="border border-gray-100 rounded-xl p-4 mb-4 bg-gray-50">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import MyLearningLocalContent from "@/components/MyLearningLocalContent";
 import { getSession } from "@/lib/auth";
+import type { Course } from "@/lib/data";
 import { mockCourses } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 
@@ -51,7 +52,7 @@ export default async function MyLearningPage({
     ? requestedCourseStatus
     : "all";
 
-  const [completedProgress, publishedCourses] = await Promise.all([
+  const [completedProgress, enrollments, publishedCourses] = await Promise.all([
     prisma.progress.findMany({
       where: {
         userId: session.userId,
@@ -60,6 +61,28 @@ export default async function MyLearningPage({
       select: {
         lessonId: true,
         completedAt: true,
+      },
+    }),
+    prisma.enrollment.findMany({
+      where: {
+        userId: session.userId,
+        active: true,
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        course: {
+          include: {
+            creator: { select: { name: true } },
+            modules: {
+              orderBy: { order: "asc" },
+              include: {
+                lessons: {
+                  orderBy: { order: "asc" },
+                },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.course.findMany({
@@ -80,7 +103,8 @@ export default async function MyLearningPage({
     }),
   ]);
   const completedLessonIds = completedProgress.map((progress) => progress.lessonId);
-  const dbCourses = publishedCourses.map((course) => ({
+
+  const mapDbCourseToCourse = (course: (typeof publishedCourses)[number]): Course => ({
     id: course.id,
     title: course.title,
     description: course.description,
@@ -107,12 +131,22 @@ export default async function MyLearningPage({
         completed: false,
       })),
     })),
-  }));
-  const availableCourses = [...dbCourses, ...mockCourses];
+  });
 
-  const continueLearningCourses = mockCourses.filter((course) => course.enrolled).slice(0, 2);
-  const recommendedCourses = mockCourses.filter((course) => !course.enrolled).slice(0, 3);
-  const lessonsCompleted = completedLessonIds.length || 6;
+  const dbCourses = publishedCourses.map(mapDbCourseToCourse);
+  const availableCourses = [...dbCourses, ...mockCourses];
+  const enrolledCourses: Course[] = enrollments.map((enrollment) => ({
+    ...mapDbCourseToCourse(enrollment.course),
+    enrolled: true,
+  }));
+  const enrolledIds = new Set(enrolledCourses.map((course) => course.id));
+  const enrolledLatestAt = new Map(
+    enrollments.map((enrollment) => [enrollment.courseId, enrollment.createdAt.toISOString()]),
+  );
+  const recommendedCourses = availableCourses
+    .filter((course) => !enrolledIds.has(course.id))
+    .slice(0, 6);
+  const lessonsCompleted = completedLessonIds.length;
 
   return (
     <div className="bg-gray-50 min-h-[calc(100vh-64px)]">
@@ -159,8 +193,8 @@ export default async function MyLearningPage({
             lessonId: progress.lessonId,
             completedAt: progress.completedAt?.toISOString() ?? null,
           }))}
-          baseEnrolledCourses={continueLearningCourses}
-          availableCourses={availableCourses}
+          enrolledCourses={enrolledCourses}
+          enrolledAtByCourseId={Object.fromEntries(enrolledLatestAt)}
           recommendedCourses={recommendedCourses}
         />
 

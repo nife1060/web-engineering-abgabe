@@ -4,6 +4,7 @@ import { markLessonCompleted, markLessonStillWorking } from "@/app/actions/cours
 import QuizPlayer from "@/components/QuizPlayer";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canAccessCourse } from "@/lib/enrollments";
 
 type Props = {
   params: Promise<{ courseId: string }>;
@@ -72,6 +73,11 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
 
   if (!course) {
     redirect("/courses");
+  }
+
+  const hasAccess = await canAccessCourse(session.userId, session.role, course.id, course.creatorId);
+  if (!hasAccess) {
+    redirect(`/courses/${course.id}?notEnrolled=true`);
   }
 
   const lessons = course.modules.flatMap((module) =>

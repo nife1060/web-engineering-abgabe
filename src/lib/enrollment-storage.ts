@@ -1,45 +1,12 @@
 import type { Course } from "@/lib/data";
 
-export const enrolledCoursesKey = "learnhub_enrolled_courses";
 export const wishlistKey = "learnhub_wishlist";
 export const wishlistKeys = [wishlistKey, "learninghub_wishlist"];
-
-export type StoredEnrollment = {
-  course: Course;
-  progress: number;
-  enrolledAt: string;
-};
 
 export type StoredWishlistCourse = {
   course: Course;
   addedAt: string;
 };
-
-export function readStoredEnrollments() {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const rawEnrollments = window.localStorage.getItem(enrolledCoursesKey);
-    if (!rawEnrollments) return [];
-
-    const enrollments = JSON.parse(rawEnrollments);
-    if (!Array.isArray(enrollments)) return [];
-
-    return enrollments.filter(
-      (enrollment): enrollment is StoredEnrollment =>
-        typeof enrollment?.course?.id === "string" &&
-        typeof enrollment?.progress === "number" &&
-        typeof enrollment?.enrolledAt === "string",
-    );
-  } catch {
-    return [];
-  }
-}
-
-export function writeStoredEnrollments(enrollments: StoredEnrollment[]) {
-  window.localStorage.setItem(enrolledCoursesKey, JSON.stringify(enrollments));
-  window.dispatchEvent(new Event("learnhub-enrollments-changed"));
-}
 
 export function readStoredWishlistCourses() {
   if (typeof window === "undefined") return [];

@@ -44,17 +44,35 @@ enum PricingModel {
   SUBSCRIPTION
 }
 
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum EnrollmentSource {
+  PURCHASE
+  SUBSCRIPTION
+  FREE
+  ADMIN_GRANT
+}
+
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  courses   Course[]
-  progress  Progress[]
-  wishlist  Wishlist[]
-  uploads   Media[]
+  id               String   @id @default(cuid())
+  name             String
+  email            String   @unique
+  password         String
+  role             Role     @default(USER)
+  createdAt        DateTime @default(now())
+  stripeCustomerId String?  @unique
+  courses          Course[]
+  progress         Progress[]
+  wishlist         Wishlist[]
+  uploads          Media[]
+  enrollments      Enrollment[]
+  orders           Order[]
+  subscriptions    Subscription[]
 }
 
 model Category {
@@ -85,7 +103,10 @@ model Course {
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   creator  User      @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   modules  Module[]
-  wishlistedBy Wishlist[]
+  wishlistedBy  Wishlist[]
+  enrollments   Enrollment[]
+  orders        Order[]
+  subscriptions Subscription[]
 
   @@index([creatorId])
   @@index([status])
@@ -188,5 +209,63 @@ model Wishlist {
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, courseId])
+  @@index([courseId])
+}
+
+model Enrollment {
+  id        String           @id @default(cuid())
+  userId    String
+  courseId  String
+  source    EnrollmentSource
+  active    Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  expiresAt DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model Order {
+  id                    String      @id @default(cuid())
+  userId                String
+  courseId              String
+  amount                Float
+  currency              String      @default("eur")
+  status                OrderStatus @default(PENDING)
+  stripeSessionId       String?     @unique
+  stripePaymentIntentId String?
+  stripeInvoiceId       String?
+  hostedInvoiceUrl      String?
+  receiptUrl            String?
+  createdAt             DateTime    @default(now())
+  paidAt                DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([stripeSessionId])
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String
+  courseId             String
+  stripeSubscriptionId String   @unique
+  stripeCustomerId     String
+  status               String
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([courseId])
 }

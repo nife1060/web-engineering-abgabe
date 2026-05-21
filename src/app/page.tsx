@@ -215,7 +215,7 @@ export default function Home() {
                 <h4 className="font-semibold text-white mb-3">Platform</h4>
                 <ul className="space-y-2">
                   <li><Link href="/courses" className="hover:text-white transition">Browse Courses</Link></li>
-                  <li><Link href="/creator" className="hover:text-white transition">Teach on Learnify</Link></li>
+                  <li><Link href="/dashboard" className="hover:text-white transition">Teach on Learnify</Link></li>
                   <li><Link href="#pricing" className="hover:text-white transition">Pricing</Link></li>
                 </ul>
               </div>
