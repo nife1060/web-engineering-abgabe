@@ -3,11 +3,23 @@ import type { CourseStatus, LessonType, PricingModel } from "@/generated/prisma/
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+type AnswerInput = {
+  text?: string;
+  isCorrect?: boolean;
+};
+
+type QuestionInput = {
+  text?: string;
+  answers?: AnswerInput[];
+};
+
 type LessonInput = {
   title?: string;
   content?: string;
   type?: LessonType;
   videoUrl?: string;
+  mediaIds?: string[];
+  questions?: QuestionInput[];
 };
 
 type ModuleInput = {
@@ -192,22 +204,64 @@ export async function POST(request: Request) {
     });
 
     for (const [moduleIndex, module] of modules.entries()) {
-      await tx.module.create({
+      const createdModule = await tx.module.create({
         data: {
           title: asString(module.title, `Module ${moduleIndex + 1}`),
           order: moduleIndex + 1,
           courseId,
-          lessons: {
-            create: (module.lessons ?? []).map((lesson, lessonIndex) => ({
-              title: asString(lesson.title, `Lesson ${lessonIndex + 1}`),
-              content: asString(lesson.content),
-              type: asLessonType(lesson.type),
-              videoUrl: asOptionalString(lesson.videoUrl),
-              order: lessonIndex + 1,
-            })),
-          },
         },
+        select: { id: true },
       });
+
+      for (const [lessonIndex, lesson] of (module.lessons ?? []).entries()) {
+        const createdLesson = await tx.lesson.create({
+          data: {
+            title: asString(lesson.title, `Lesson ${lessonIndex + 1}`),
+            content: asString(lesson.content),
+            type: asLessonType(lesson.type),
+            videoUrl: asOptionalString(lesson.videoUrl),
+            order: lessonIndex + 1,
+            moduleId: createdModule.id,
+          },
+          select: { id: true },
+        });
+
+        const mediaIds = Array.isArray(lesson.mediaIds)
+          ? lesson.mediaIds.filter((id): id is string => typeof id === "string")
+          : [];
+
+        if (mediaIds.length > 0) {
+          await tx.media.updateMany({
+            where: { id: { in: mediaIds }, uploadedById: session.userId },
+            data: { lessonId: createdLesson.id },
+          });
+        }
+
+        const questions = Array.isArray(lesson.questions) ? lesson.questions : [];
+        for (const [qIndex, q] of questions.entries()) {
+          const questionText = asString(q.text);
+          if (!questionText) continue;
+
+          const createdQuestion = await tx.question.create({
+            data: { text: questionText, order: qIndex + 1, lessonId: createdLesson.id },
+            select: { id: true },
+          });
+
+          const answers = Array.isArray(q.answers) ? q.answers : [];
+          for (const [aIndex, a] of answers.entries()) {
+            const answerText = asString(a.text);
+            if (!answerText) continue;
+            await tx.answer.create({
+              data: {
+                text: answerText,
+                isCorrect: a.isCorrect === true,
+                order: aIndex + 1,
+                questionId: createdQuestion.id,
+              },
+            });
+          }
+        }
+      }
     }
 
     return course;

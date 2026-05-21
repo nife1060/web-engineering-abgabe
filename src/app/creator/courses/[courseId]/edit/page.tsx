@@ -26,6 +26,13 @@ export default async function EditCoursePage({ params }: Props) {
         include: {
           lessons: {
             orderBy: { order: "asc" },
+            include: {
+                media: { orderBy: { createdAt: "asc" } },
+                questions: {
+                  orderBy: { order: "asc" },
+                  include: { answers: { orderBy: { order: "asc" } } },
+                },
+              },
           },
         },
       },
@@ -60,6 +67,23 @@ export default async function EditCoursePage({ params }: Props) {
         content: lesson.content,
         type: lesson.type,
         videoUrl: lesson.videoUrl ?? "",
+        media: lesson.media.map((m) => ({
+          id: m.id,
+          filename: m.filename,
+          url: m.url,
+          mimeType: m.mimeType,
+          type: m.type as string,
+          size: m.size,
+        })),
+        questions: lesson.questions.map((q) => ({
+          id: q.id,
+          text: q.text,
+          answers: q.answers.map((a) => ({
+            id: a.id,
+            text: a.text,
+            isCorrect: a.isCorrect,
+          })),
+        })),
       })),
     })),
   };

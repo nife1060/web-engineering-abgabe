@@ -29,6 +29,15 @@ enum LessonType {
   QUIZ
 }
 
+enum MediaType {
+  VIDEO
+  IMAGE
+  PDF
+  AUDIO
+  TEXT
+  OTHER
+}
+
 enum PricingModel {
   PAID
   FREE
@@ -45,6 +54,7 @@ model User {
   courses   Course[]
   progress  Progress[]
   wishlist  Wishlist[]
+  uploads   Media[]
 }
 
 model Category {
@@ -102,10 +112,56 @@ model Lesson {
   order    Int
   moduleId String
 
-  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  progress Progress[]
+  module    Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress  Progress[]
+  media     Media[]
+  questions Question[]
 
   @@index([moduleId])
+}
+
+model Question {
+  id       String   @id @default(cuid())
+  text     String
+  order    Int
+  lessonId String
+
+  lesson  Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@index([lessonId])
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int
+  questionId String
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model Media {
+  id           String    @id @default(cuid())
+  filename     String
+  storedName   String
+  url          String
+  mimeType     String
+  size         Int
+  type         MediaType @default(OTHER)
+  lessonId     String?
+  uploadedById String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lesson     Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+  @@index([uploadedById])
 }
 
 model Progress {

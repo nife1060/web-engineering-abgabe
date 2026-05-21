@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CourseStatus, LessonType, PricingModel } from "@/generated/prisma/enums";
@@ -10,12 +10,35 @@ type CategoryOption = {
   name: string;
 };
 
+type MediaItem = {
+  id: string;
+  filename: string;
+  url: string;
+  mimeType: string;
+  type: string;
+  size: number;
+};
+
+export type AnswerDraft = {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+};
+
+export type QuestionDraft = {
+  id: string;
+  text: string;
+  answers: AnswerDraft[];
+};
+
 export type LessonDraft = {
   id: string;
   title: string;
   content: string;
   type: LessonType;
   videoUrl: string;
+  media: MediaItem[];
+  questions: QuestionDraft[];
 };
 
 export type ModuleDraft = {
@@ -50,6 +73,18 @@ const steps = ["Basic Info", "Curriculum", "Media", "Pricing", "Review"];
 const inputClass = "w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500";
 const textareaClass = `${inputClass} resize-none`;
 
+function createAnswer(index: number): AnswerDraft {
+  return { id: crypto.randomUUID(), text: `Option ${index}`, isCorrect: false };
+}
+
+function createQuestion(index: number): QuestionDraft {
+  return {
+    id: crypto.randomUUID(),
+    text: `Frage ${index}`,
+    answers: [createAnswer(1), createAnswer(2)],
+  };
+}
+
 function createLesson(index: number): LessonDraft {
   return {
     id: crypto.randomUUID(),
@@ -57,8 +92,25 @@ function createLesson(index: number): LessonDraft {
     content: "",
     type: "VIDEO",
     videoUrl: "",
+    media: [],
+    questions: [],
   };
 }
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const MEDIA_TYPE_COLORS: Record<string, string> = {
+  IMAGE: "bg-blue-100 text-blue-700",
+  VIDEO: "bg-purple-100 text-purple-700",
+  PDF: "bg-red-100 text-red-700",
+  AUDIO: "bg-green-100 text-green-700",
+  TEXT: "bg-yellow-100 text-yellow-700",
+  OTHER: "bg-gray-100 text-gray-500",
+};
 
 function createModule(index: number): ModuleDraft {
   return {
@@ -102,6 +154,14 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Media-Picker state
+  const [pickerLessonId, setPickerLessonId] = useState<string | null>(null);
+  const [libraryItems, setLibraryItems] = useState<MediaItem[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [uploadingForLessonId, setUploadingForLessonId] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<Record<string, string>>({});
+  const lessonFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const lessonCount = useMemo(
     () => course.modules.reduce((count, module) => count + module.lessons.length, 0),
@@ -191,6 +251,162 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     }));
   }
 
+  function updateLessonQuestions(
+    moduleId: string,
+    lessonId: string,
+    updater: (qs: QuestionDraft[]) => QuestionDraft[],
+  ) {
+    setCourse((prev) => ({
+      ...prev,
+      modules: prev.modules.map((mod) =>
+        mod.id !== moduleId
+          ? mod
+          : {
+              ...mod,
+              lessons: mod.lessons.map((lesson) =>
+                lesson.id !== lessonId ? lesson : { ...lesson, questions: updater(lesson.questions) },
+              ),
+            },
+      ),
+    }));
+  }
+
+  function addQuestion(moduleId: string, lessonId: string) {
+    updateLessonQuestions(moduleId, lessonId, (qs) => [...qs, createQuestion(qs.length + 1)]);
+  }
+
+  function removeQuestion(moduleId: string, lessonId: string, questionId: string) {
+    updateLessonQuestions(moduleId, lessonId, (qs) => qs.filter((q) => q.id !== questionId));
+  }
+
+  function updateQuestionText(moduleId: string, lessonId: string, questionId: string, text: string) {
+    updateLessonQuestions(moduleId, lessonId, (qs) =>
+      qs.map((q) => (q.id === questionId ? { ...q, text } : q)),
+    );
+  }
+
+  function addAnswer(moduleId: string, lessonId: string, questionId: string) {
+    updateLessonQuestions(moduleId, lessonId, (qs) =>
+      qs.map((q) =>
+        q.id !== questionId ? q : { ...q, answers: [...q.answers, createAnswer(q.answers.length + 1)] },
+      ),
+    );
+  }
+
+  function removeAnswer(moduleId: string, lessonId: string, questionId: string, answerId: string) {
+    updateLessonQuestions(moduleId, lessonId, (qs) =>
+      qs.map((q) =>
+        q.id !== questionId ? q : { ...q, answers: q.answers.filter((a) => a.id !== answerId) },
+      ),
+    );
+  }
+
+  function updateAnswerText(
+    moduleId: string,
+    lessonId: string,
+    questionId: string,
+    answerId: string,
+    text: string,
+  ) {
+    updateLessonQuestions(moduleId, lessonId, (qs) =>
+      qs.map((q) =>
+        q.id !== questionId
+          ? q
+          : { ...q, answers: q.answers.map((a) => (a.id === answerId ? { ...a, text } : a)) },
+      ),
+    );
+  }
+
+  function toggleCorrectAnswer(moduleId: string, lessonId: string, questionId: string, answerId: string) {
+    updateLessonQuestions(moduleId, lessonId, (qs) =>
+      qs.map((q) =>
+        q.id !== questionId
+          ? q
+          : { ...q, answers: q.answers.map((a) => (a.id === answerId ? { ...a, isCorrect: !a.isCorrect } : a)) },
+      ),
+    );
+  }
+
+  async function openLibraryPicker(lessonId: string) {
+    if (pickerLessonId === lessonId) {
+      setPickerLessonId(null);
+      return;
+    }
+    setPickerLessonId(lessonId);
+    setLibraryLoading(true);
+    try {
+      const res = await fetch("/api/media");
+      const data = (await res.json()) as MediaItem[];
+      setLibraryItems(Array.isArray(data) ? data : []);
+    } catch {
+      setLibraryItems([]);
+    } finally {
+      setLibraryLoading(false);
+    }
+  }
+
+  function attachMediaToLesson(moduleId: string, lessonId: string, item: MediaItem) {
+    setCourse((prev) => ({
+      ...prev,
+      modules: prev.modules.map((mod) =>
+        mod.id === moduleId
+          ? {
+              ...mod,
+              lessons: mod.lessons.map((lesson) =>
+                lesson.id === lessonId && !lesson.media.some((m) => m.id === item.id)
+                  ? { ...lesson, media: [...lesson.media, item] }
+                  : lesson,
+              ),
+            }
+          : mod,
+      ),
+    }));
+  }
+
+  function removeMediaFromLesson(moduleId: string, lessonId: string, mediaId: string) {
+    setCourse((prev) => ({
+      ...prev,
+      modules: prev.modules.map((mod) =>
+        mod.id === moduleId
+          ? {
+              ...mod,
+              lessons: mod.lessons.map((lesson) =>
+                lesson.id === lessonId
+                  ? { ...lesson, media: lesson.media.filter((m) => m.id !== mediaId) }
+                  : lesson,
+              ),
+            }
+          : mod,
+      ),
+    }));
+  }
+
+  async function handleLessonMediaUpload(moduleId: string, lessonId: string, file: File) {
+    setMediaError((prev) => ({ ...prev, [lessonId]: "" }));
+    setUploadingForLessonId(lessonId);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/media/upload", { method: "POST", body: formData });
+      const data = (await res.json()) as MediaItem & { error?: string };
+
+      if (!res.ok) {
+        setMediaError((prev) => ({ ...prev, [lessonId]: data.error ?? "Upload fehlgeschlagen." }));
+        return;
+      }
+
+      attachMediaToLesson(moduleId, lessonId, data);
+    } catch {
+      setMediaError((prev) => ({ ...prev, [lessonId]: "Upload fehlgeschlagen." }));
+    } finally {
+      setUploadingForLessonId(null);
+      const ref = lessonFileRefs.current[lessonId];
+      if (ref) ref.value = "";
+    }
+  }
+
   async function uploadFile(file: File) {
     const formData = new FormData();
     formData.append("file", file);
@@ -273,6 +489,17 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
           ...course,
           categoryName: selectedCategory?.name ?? course.categoryName,
           status,
+          modules: course.modules.map((mod) => ({
+            ...mod,
+            lessons: mod.lessons.map((lesson) => ({
+              ...lesson,
+              mediaIds: lesson.media.map((m) => m.id),
+              questions: lesson.questions.map((q) => ({
+                text: q.text,
+                answers: q.answers.map((a) => ({ text: a.text, isCorrect: a.isCorrect })),
+              })),
+            })),
+          })),
         }),
       });
 
@@ -470,27 +697,232 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                           </div>
 
                           {isEditing && (
-                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Lesson title</label>
-                                <input value={lesson.title} onChange={(event) => updateLesson(module.id, lesson.id, { title: event.target.value })} className={inputClass} />
+                            <div className="mt-4 border-t border-gray-100 pt-4 space-y-4">
+                              {/* Title + type — always visible */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Lesson title</label>
+                                  <input value={lesson.title} onChange={(event) => updateLesson(module.id, lesson.id, { title: event.target.value })} className={inputClass} />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Lesson type</label>
+                                  <select value={lesson.type} onChange={(event) => updateLesson(module.id, lesson.id, { type: event.target.value as LessonType })} className={inputClass}>
+                                    <option value="VIDEO">Video</option>
+                                    <option value="TEXT">Text</option>
+                                    <option value="QUIZ">Quiz</option>
+                                  </select>
+                                </div>
                               </div>
-                              <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Lesson type</label>
-                                <select value={lesson.type} onChange={(event) => updateLesson(module.id, lesson.id, { type: event.target.value as LessonType })} className={inputClass}>
-                                  <option value="VIDEO">Video</option>
-                                  <option value="TEXT">Text</option>
-                                  <option value="QUIZ">Quiz</option>
-                                </select>
-                              </div>
-                              <div className="sm:col-span-2">
-                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Lesson content / description</label>
-                                <textarea rows={3} value={lesson.content} onChange={(event) => updateLesson(module.id, lesson.id, { content: event.target.value })} className={textareaClass} />
-                              </div>
-                              <div className="sm:col-span-2">
-                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Optional videoUrl</label>
-                                <input value={lesson.videoUrl} onChange={(event) => updateLesson(module.id, lesson.id, { videoUrl: event.target.value })} placeholder="https://..." className={inputClass} />
-                              </div>
+
+                              {/* VIDEO fields */}
+                              {lesson.type === "VIDEO" && (
+                                <div className="space-y-4">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Lesson content / description</label>
+                                    <textarea rows={3} value={lesson.content} onChange={(event) => updateLesson(module.id, lesson.id, { content: event.target.value })} className={textareaClass} />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Video-URL (optional)</label>
+                                    <input value={lesson.videoUrl} onChange={(event) => updateLesson(module.id, lesson.id, { videoUrl: event.target.value })} placeholder="https://youtube.com/..." className={inputClass} />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* TEXT fields */}
+                              {lesson.type === "TEXT" && (
+                                <div>
+                                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Inhalt</label>
+                                  <textarea rows={6} value={lesson.content} onChange={(event) => updateLesson(module.id, lesson.id, { content: event.target.value })} placeholder="Schreibe den vollständigen Lektionsinhalt hier..." className={textareaClass} />
+                                </div>
+                              )}
+
+                              {/* QUIZ builder */}
+                              {lesson.type === "QUIZ" && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold text-gray-500">
+                                      Quiz-Fragen ({lesson.questions.length})
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={() => addQuestion(module.id, lesson.id)}
+                                      className="text-xs font-semibold text-purple-600 border border-purple-300 px-3 py-1.5 rounded-lg hover:bg-purple-50 transition"
+                                    >
+                                      + Frage hinzufügen
+                                    </button>
+                                  </div>
+
+                                  {lesson.questions.length === 0 && (
+                                    <p className="text-xs text-gray-400 text-center py-4 border border-dashed border-gray-200 rounded-xl">
+                                      Noch keine Fragen. Füge die erste Frage hinzu.
+                                    </p>
+                                  )}
+
+                                  {lesson.questions.map((question, qIndex) => (
+                                    <div key={question.id} className="border border-gray-200 rounded-xl p-4 space-y-3">
+                                      <div className="flex items-center gap-2">
+                                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                                          {qIndex + 1}
+                                        </span>
+                                        <input
+                                          value={question.text}
+                                          onChange={(e) => updateQuestionText(module.id, lesson.id, question.id, e.target.value)}
+                                          placeholder="Fragetext eingeben…"
+                                          className="flex-1 text-sm text-gray-900 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => removeQuestion(module.id, lesson.id, question.id)}
+                                          className="text-red-400 hover:text-red-600 text-xs font-bold px-2 shrink-0"
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+
+                                      <div className="space-y-2 pl-7">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                                          Antworten — markiere die richtige
+                                        </p>
+                                        {question.answers.map((answer) => (
+                                          <div key={answer.id} className="flex items-center gap-2">
+                                            <input
+                                              type="checkbox"
+                                              checked={answer.isCorrect}
+                                              onChange={() => toggleCorrectAnswer(module.id, lesson.id, question.id, answer.id)}
+                                              className="shrink-0 accent-purple-600"
+                                            />
+                                            <input
+                                              value={answer.text}
+                                              onChange={(e) => updateAnswerText(module.id, lesson.id, question.id, answer.id, e.target.value)}
+                                              placeholder="Antworttext…"
+                                              className={`flex-1 px-3 py-2 rounded-xl border text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 ${answer.isCorrect ? "border-green-300 bg-green-50" : "border-gray-200"}`}
+                                            />
+                                            {question.answers.length > 2 && (
+                                              <button
+                                                type="button"
+                                                onClick={() => removeAnswer(module.id, lesson.id, question.id, answer.id)}
+                                                className="text-red-400 hover:text-red-600 text-xs font-bold shrink-0"
+                                              >
+                                                ×
+                                              </button>
+                                            )}
+                                          </div>
+                                        ))}
+                                        {question.answers.length < 4 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => addAnswer(module.id, lesson.id, question.id)}
+                                            className="text-xs text-purple-600 font-semibold hover:text-purple-800 transition"
+                                          >
+                                            + Antwort hinzufügen
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Media section — VIDEO and TEXT only */}
+                              {lesson.type !== "QUIZ" && (
+                                <div className="border-t border-gray-100 pt-4">
+                                  <p className="text-xs font-semibold text-gray-500 mb-3">Medien-Anhänge</p>
+
+                                  {lesson.media.length > 0 && (
+                                    <div className="mb-3 space-y-2">
+                                      {lesson.media.map((item) => (
+                                        <div key={item.id} className="flex items-center gap-3 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl">
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${MEDIA_TYPE_COLORS[item.type] ?? MEDIA_TYPE_COLORS.OTHER}`}>
+                                            {item.type}
+                                          </span>
+                                          <span className="flex-1 text-xs text-gray-700 truncate">{item.filename}</span>
+                                          <span className="text-[10px] text-gray-400 shrink-0">{formatFileSize(item.size)}</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => removeMediaFromLesson(module.id, lesson.id, item.id)}
+                                            className="text-red-400 hover:text-red-600 text-xs font-bold shrink-0"
+                                          >
+                                            ×
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {mediaError[lesson.id] && (
+                                    <p className="text-xs text-red-600 mb-2 font-medium">{mediaError[lesson.id]}</p>
+                                  )}
+
+                                  <div className="flex flex-wrap gap-2">
+                                    <label className={`text-xs font-semibold px-3 py-1.5 border rounded-lg transition cursor-pointer ${uploadingForLessonId === lesson.id ? "border-gray-200 text-gray-400" : "border-purple-300 text-purple-600 hover:bg-purple-50"}`}>
+                                      {uploadingForLessonId === lesson.id ? (
+                                        <span className="flex items-center gap-1">
+                                          <span className="w-3 h-3 rounded-full border border-purple-400 border-t-transparent animate-spin inline-block" />
+                                          Lädt hoch…
+                                        </span>
+                                      ) : (
+                                        "Datei hochladen"
+                                      )}
+                                      <input
+                                        type="file"
+                                        className="sr-only"
+                                        disabled={uploadingForLessonId === lesson.id}
+                                        ref={(el) => { lessonFileRefs.current[lesson.id] = el; }}
+                                        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,application/pdf,audio/mpeg,audio/wav,audio/ogg,text/plain,text/markdown,text/javascript,text/typescript,text/x-python,text/x-sh"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) handleLessonMediaUpload(module.id, lesson.id, file);
+                                        }}
+                                      />
+                                    </label>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => openLibraryPicker(lesson.id)}
+                                      className="text-xs font-semibold px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition"
+                                    >
+                                      {pickerLessonId === lesson.id ? "Bibliothek schließen" : "Aus Bibliothek wählen"}
+                                    </button>
+                                  </div>
+
+                                  {pickerLessonId === lesson.id && (
+                                    <div className="mt-3 border border-gray-200 rounded-xl overflow-hidden">
+                                      <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-600">Deine Medienbibliothek</p>
+                                      </div>
+                                      {libraryLoading ? (
+                                        <div className="flex items-center justify-center py-6">
+                                          <div className="w-5 h-5 rounded-full border-2 border-purple-600 border-t-transparent animate-spin" />
+                                        </div>
+                                      ) : libraryItems.length === 0 ? (
+                                        <p className="text-xs text-gray-400 text-center py-6">Keine Mediendateien in deiner Bibliothek.</p>
+                                      ) : (
+                                        <div className="max-h-52 overflow-y-auto divide-y divide-gray-100">
+                                          {libraryItems.map((item) => {
+                                            const alreadyAttached = lesson.media.some((m) => m.id === item.id);
+                                            return (
+                                              <button
+                                                key={item.id}
+                                                type="button"
+                                                disabled={alreadyAttached}
+                                                onClick={() => attachMediaToLesson(module.id, lesson.id, item)}
+                                                className={`w-full flex items-center gap-3 px-3 py-2 text-left transition ${alreadyAttached ? "opacity-40 cursor-default" : "hover:bg-purple-50"}`}
+                                              >
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${MEDIA_TYPE_COLORS[item.type] ?? MEDIA_TYPE_COLORS.OTHER}`}>
+                                                  {item.type}
+                                                </span>
+                                                <span className="flex-1 text-xs text-gray-700 truncate">{item.filename}</span>
+                                                <span className="text-[10px] text-gray-400 shrink-0">{formatFileSize(item.size)}</span>
+                                                {alreadyAttached && <span className="text-[10px] text-green-600 font-bold shrink-0">✓</span>}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

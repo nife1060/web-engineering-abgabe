@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { markLessonCompleted, markLessonStillWorking } from "@/app/actions/course-interactions";
+import QuizPlayer from "@/components/QuizPlayer";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -16,12 +17,20 @@ function getYouTubeEmbedUrl(url: string | null) {
 
   try {
     const parsedUrl = new URL(url);
+
     if (parsedUrl.hostname.includes("youtube.com")) {
+      // Already an embed URL — use as-is
+      if (parsedUrl.pathname.startsWith("/embed/")) {
+        return url;
+      }
+      // watch?v=VIDEO_ID
       const videoId = parsedUrl.searchParams.get("v");
       return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
     }
+
     if (parsedUrl.hostname.includes("youtu.be")) {
-      const videoId = parsedUrl.pathname.replace("/", "");
+      // youtu.be/VIDEO_ID
+      const videoId = parsedUrl.pathname.slice(1);
       return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
     }
   } catch {
@@ -48,6 +57,13 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
         include: {
           lessons: {
             orderBy: { order: "asc" },
+            include: {
+                media: { orderBy: { createdAt: "asc" } },
+                questions: {
+                  orderBy: { order: "asc" },
+                  include: { answers: { orderBy: { order: "asc" } } },
+                },
+              },
           },
         },
       },
@@ -188,8 +204,15 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
                 </div>
               ) : currentLesson.type === "QUIZ" ? (
                 <div className="text-center">
-                  <p className="text-purple-200 text-sm font-semibold">QUIZ</p>
-                  <p className="text-gray-300 text-sm mt-2">Quiz placeholder for this lesson.</p>
+                  <div className="w-16 h-16 rounded-full bg-purple-600 mx-auto mb-4 flex items-center justify-center text-2xl font-bold">
+                    ?
+                  </div>
+                  <p className="text-purple-200 text-sm font-semibold">Quiz</p>
+                  <p className="text-gray-400 text-xs mt-1">
+                    {currentLesson.questions.length === 0
+                      ? "Noch keine Fragen vorhanden."
+                      : `${currentLesson.questions.length} Frage${currentLesson.questions.length !== 1 ? "n" : ""}`}
+                  </p>
                 </div>
               ) : (
                 <div className="text-center">
@@ -215,9 +238,101 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
                 )}
               </div>
 
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 text-sm text-gray-700 leading-relaxed min-h-28 mb-6">
-                {currentLesson.content || "No written lesson content yet. The creator can add content in the Course Builder."}
-              </div>
+              {currentLesson.type === "QUIZ" ? (
+                <div className="mb-6">
+                  <QuizPlayer
+                    questions={currentLesson.questions.map((q) => ({
+                      id: q.id,
+                      text: q.text,
+                      answers: q.answers.map((a) => ({
+                        id: a.id,
+                        text: a.text,
+                        isCorrect: a.isCorrect,
+                      })),
+                    }))}
+                  />
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-100 rounded-xl p-5 text-sm text-gray-700 leading-relaxed min-h-28 mb-6">
+                  {currentLesson.content || "No written lesson content yet. The creator can add content in the Course Builder."}
+                </div>
+              )}
+
+              {currentLesson.media.length > 0 && (
+                <div className="mb-6 space-y-4">
+                  <h3 className="text-sm font-bold text-gray-900">Anhänge</h3>
+                  {currentLesson.media.map((item) => {
+                    if (item.type === "IMAGE") {
+                      return (
+                        <div key={item.id} className="rounded-xl overflow-hidden border border-gray-200">
+                          <img src={item.url} alt={item.filename} className="w-full max-h-96 object-contain bg-gray-50" />
+                          <p className="text-xs text-gray-500 px-3 py-2">{item.filename}</p>
+                        </div>
+                      );
+                    }
+                    if (item.type === "VIDEO") {
+                      return (
+                        <div key={item.id} className="rounded-xl overflow-hidden border border-gray-200">
+                          <video controls className="w-full max-h-96 bg-black" src={item.url}>
+                            Dein Browser unterstützt kein HTML5-Video.
+                          </video>
+                          <p className="text-xs text-gray-500 px-3 py-2">{item.filename}</p>
+                        </div>
+                      );
+                    }
+                    if (item.type === "PDF") {
+                      return (
+                        <div key={item.id} className="rounded-xl border border-gray-200 overflow-hidden">
+                          <iframe src={item.url} title={item.filename} className="w-full h-96" />
+                          <div className="px-3 py-2 flex items-center justify-between border-t border-gray-100">
+                            <p className="text-xs text-gray-500">{item.filename}</p>
+                            <a href={item.url} download className="text-xs text-purple-600 font-semibold hover:text-purple-800">
+                              Herunterladen
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (item.type === "AUDIO") {
+                      return (
+                        <div key={item.id} className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+                          <p className="text-xs font-semibold text-gray-700 mb-2">{item.filename}</p>
+                          <audio controls className="w-full" src={item.url}>
+                            Dein Browser unterstützt kein HTML5-Audio.
+                          </audio>
+                        </div>
+                      );
+                    }
+                    if (item.type === "TEXT") {
+                      return (
+                        <div key={item.id} className="rounded-xl border border-gray-200 overflow-hidden">
+                          <div className="bg-gray-900 px-4 py-2 flex items-center justify-between">
+                            <p className="text-xs text-gray-400 font-mono">{item.filename}</p>
+                            <a href={item.url} download className="text-xs text-purple-400 font-semibold hover:text-purple-200">
+                              Herunterladen
+                            </a>
+                          </div>
+                          <iframe src={item.url} title={item.filename} className="w-full h-64 bg-gray-900" />
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={item.id} className="rounded-xl border border-gray-200 p-4 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-10 h-10 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center text-sm font-bold">📄</span>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{item.filename}</p>
+                            <p className="text-xs text-gray-400">{item.mimeType}</p>
+                          </div>
+                        </div>
+                        <a href={item.url} download className="text-sm text-purple-600 font-semibold hover:text-purple-800 border border-purple-200 px-4 py-2 rounded-xl hover:bg-purple-50 transition">
+                          Herunterladen
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <form
