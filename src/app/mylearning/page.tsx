@@ -146,7 +146,6 @@ export default async function MyLearningPage({
   const recommendedCourses = availableCourses
     .filter((course) => !enrolledIds.has(course.id))
     .slice(0, 6);
-  const lessonsCompleted = completedLessonIds.length;
 
   return (
     <div className="bg-gray-50 min-h-[calc(100vh-64px)]">
@@ -187,7 +186,6 @@ export default async function MyLearningPage({
         <MyLearningLocalContent
           activeTab={activeTab}
           activeCourseStatus={activeCourseStatus}
-          completedLessons={lessonsCompleted}
           completedLessonIds={completedLessonIds}
           completedLessonActivity={completedProgress.map((progress) => ({
             lessonId: progress.lessonId,

@@ -115,23 +115,50 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
   const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
   const currentIndex = lessons.findIndex((lesson) => lesson.id === currentLesson.id);
   const nextLesson = lessons[currentIndex + 1];
+  const previousLesson = lessons[currentIndex - 1];
   const youtubeEmbedUrl = getYouTubeEmbedUrl(currentLesson.videoUrl);
   const isCurrentLessonCompleted = completedLessonIds.has(currentLesson.id);
+  const remainingCount = Math.max(lessons.length - completedCount, 0);
+  const courseStatusLabel =
+    progressPercent >= 100 ? "Course completed" : completedCount > 0 ? "In progress" : "Not started";
 
   return (
     <div className="bg-gray-50 min-h-[calc(100vh-64px)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between mb-6">
           <div>
             <Link href={`/courses/${course.id}`} className="text-sm text-purple-600 font-semibold hover:text-purple-800">
               Back to course
             </Link>
             <h1 className="text-2xl font-extrabold text-gray-900 mt-1">{course.title}</h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
+              <span className={`rounded-full px-3 py-1 ring-1 ${
+                progressPercent >= 100
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                  : completedCount > 0
+                    ? "bg-purple-50 text-purple-700 ring-purple-200"
+                    : "bg-gray-100 text-gray-600 ring-gray-200"
+              }`}>
+                {courseStatusLabel}
+              </span>
+              <span className="rounded-full bg-white px-3 py-1 text-gray-600 ring-1 ring-gray-200">
+                Lesson {currentIndex + 1} of {lessons.length}
+              </span>
+              <span className="rounded-full bg-white px-3 py-1 text-gray-600 ring-1 ring-gray-200">
+                {remainingCount} open
+              </span>
+            </div>
           </div>
-          <div className="text-right min-w-40">
-            <p className="text-xs text-gray-500 mb-1">{completedCount} of {lessons.length} completed</p>
-            <div className="w-40 bg-gray-200 rounded-full h-2">
-              <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${progressPercent}%` }} />
+          <div className="w-full rounded-2xl border border-gray-200 bg-white p-4 lg:w-80">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-bold text-gray-500">{completedCount} of {lessons.length} completed</p>
+              <p className="text-sm font-extrabold text-gray-900">{progressPercent}%</p>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
+              <div
+                className={`h-full rounded-full transition-all ${progressPercent >= 100 ? "bg-emerald-500" : "bg-purple-600"}`}
+                style={{ width: `${progressPercent}%` }}
+              />
             </div>
           </div>
         </div>
@@ -141,13 +168,19 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
             <div className="p-5 border-b border-gray-100">
               <h2 className="text-xl font-extrabold text-gray-900">Course Content</h2>
               <p className="text-sm font-semibold text-purple-600 mt-1">{progressPercent}% complete</p>
+              <p className="text-xs text-gray-500 mt-1">{completedCount} completed, {remainingCount} remaining</p>
             </div>
             <div className="divide-y divide-gray-100">
               {course.modules.map((module, moduleIndex) => (
                 <div key={module.id} className="p-4">
-                  <p className="text-xs font-bold text-gray-500 uppercase mb-3">
-                    {moduleIndex + 1}. {module.title}
-                  </p>
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold text-gray-500 uppercase">
+                      {moduleIndex + 1}. {module.title}
+                    </p>
+                    <p className="shrink-0 text-[11px] font-bold text-gray-400">
+                      {module.lessons.filter((lesson) => completedLessonIds.has(lesson.id)).length}/{module.lessons.length}
+                    </p>
+                  </div>
                   <div className="space-y-2">
                     {module.lessons.map((lesson) => {
                       const isActive = lesson.id === currentLesson.id;
@@ -159,10 +192,11 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
                           href={`/learn/${course.id}?lesson=${lesson.id}`}
                           className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition ${isActive ? "bg-purple-50 text-purple-700 ring-1 ring-purple-100" : "hover:bg-gray-50 text-gray-700"}`}
                         >
-                          <span className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center ${isCompleted ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
+                          <span className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center ${isCompleted ? "bg-emerald-100 text-emerald-700" : isActive ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
                             {isCompleted ? "✓" : lesson.order}
                           </span>
-                          <span className="line-clamp-2">{lesson.title}</span>
+                          <span className="min-w-0 flex-1 line-clamp-2">{lesson.title}</span>
+                          {isActive ? <span className="text-[10px] font-extrabold text-purple-500">Now</span> : null}
                         </Link>
                       );
                     })}
@@ -238,7 +272,7 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
                   <p className="text-sm text-gray-500 mt-1">Lesson-Type: {currentLesson.type}</p>
                 </div>
                 {isCurrentLessonCompleted && (
-                  <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                  <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-full">
                     Completed
                   </span>
                 )}
@@ -341,6 +375,11 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
               )}
 
               <div className="flex flex-col sm:flex-row gap-3">
+                {previousLesson ? (
+                  <Link href={`/learn/${course.id}?lesson=${previousLesson.id}`} className="flex-1 text-center border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition text-sm">
+                    Previous Lesson
+                  </Link>
+                ) : null}
                 <form
                   action={(isCurrentLessonCompleted ? markLessonStillWorking : markLessonCompleted).bind(null, course.id, currentLesson.id)}
                   className="flex-1"

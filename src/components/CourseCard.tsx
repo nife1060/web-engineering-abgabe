@@ -11,6 +11,12 @@ const cardClass = "group block bg-white rounded-xl border border-gray-200 overfl
 
 export default function CourseCard({ course, showProgress }: Props) {
   const priceLabel = formatCoursePrice(course.pricingModel ?? "PAID", course.price, course.subscriptionPrice ?? 0);
+  const lessons = course.modules.flatMap((module) => module.lessons);
+  const completedLessons = lessons.filter((lesson) => lesson.completed).length;
+  const totalLessons = lessons.length;
+  const progress = course.progress ?? (totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0);
+  const statusLabel = progress >= 100 ? "Completed" : progress > 0 ? "In Progress" : "Not Started";
+
   const inner = (
     <>
       <div className="relative h-44 bg-gray-200 overflow-hidden">
@@ -22,6 +28,17 @@ export default function CourseCard({ course, showProgress }: Props) {
         <span className="absolute top-3 left-3 bg-purple-600 text-white text-xs font-semibold px-2 py-1 rounded">
           {course.level}
         </span>
+        {showProgress ? (
+          <span className={`absolute top-3 right-3 rounded-full px-2.5 py-1 text-[11px] font-extrabold ring-1 ${
+            progress >= 100
+              ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+              : progress > 0
+                ? "bg-purple-50 text-purple-700 ring-purple-200"
+                : "bg-gray-100 text-gray-600 ring-gray-200"
+          }`}>
+            {statusLabel}
+          </span>
+        ) : null}
       </div>
       <div className="p-4">
         <p className="text-xs text-purple-600 font-semibold uppercase tracking-wide mb-1">
@@ -32,18 +49,21 @@ export default function CourseCard({ course, showProgress }: Props) {
         </h3>
         <p className="text-xs text-gray-500 mb-3">{course.instructor}</p>
 
-        {showProgress && course.progress !== undefined ? (
+        {showProgress ? (
           <div>
             <div className="flex justify-between text-xs text-gray-500 mb-1">
               <span>Progress</span>
-              <span>{course.progress}%</span>
+              <span>{progress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-purple-600 h-2 rounded-full transition-all"
-                style={{ width: `${course.progress}%` }}
+                className={`h-2 rounded-full transition-all ${progress >= 100 ? "bg-emerald-500" : "bg-purple-600"}`}
+                style={{ width: `${progress}%` }}
               />
             </div>
+            <p className="mt-2 text-xs font-semibold text-gray-500">
+              {completedLessons}/{totalLessons} lessons completed
+            </p>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">

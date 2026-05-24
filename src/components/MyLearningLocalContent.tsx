@@ -12,7 +12,6 @@ import {
 type MyLearningLocalContentProps = {
   activeTab: string;
   activeCourseStatus: string;
-  completedLessons: number;
   completedLessonIds: string[];
   completedLessonActivity: {
     lessonId: string;
@@ -28,6 +27,28 @@ const myCourseTabs = [
   { label: "In Progress", value: "in-progress", href: "/mylearning?tab=my-courses&courseStatus=in-progress" },
   { label: "Completed", value: "completed", href: "/mylearning?tab=my-courses&courseStatus=completed" },
 ];
+
+function getCourseLearningStats(course: Course) {
+  const lessons = course.modules.flatMap((module) => module.lessons);
+  const completedLessons = lessons.filter((lesson) => lesson.completed).length;
+  const totalLessons = lessons.length;
+  const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const remainingLessons = Math.max(totalLessons - completedLessons, 0);
+  const status =
+    progress >= 100
+      ? { label: "Completed", dotClass: "bg-emerald-500", badgeClass: "bg-emerald-50 text-emerald-700 ring-emerald-200" }
+      : completedLessons > 0
+        ? { label: "In Progress", dotClass: "bg-purple-500", badgeClass: "bg-purple-50 text-purple-700 ring-purple-200" }
+        : { label: "Not Started", dotClass: "bg-gray-400", badgeClass: "bg-gray-100 text-gray-600 ring-gray-200" };
+
+  return {
+    completedLessons,
+    totalLessons,
+    progress,
+    remainingLessons,
+    status,
+  };
+}
 
 function formatActivityTime(date: Date) {
   const minutesAgo = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
@@ -48,7 +69,8 @@ function getLessonPlayerHref(course: Course) {
 }
 
 function ProgressCourseCard({ course }: { course: Course }) {
-  const progress = course.progress ?? 0;
+  const stats = getCourseLearningStats(course);
+  const progress = course.progress ?? stats.progress;
   const lessonHref = getLessonPlayerHref(course);
 
   return (
@@ -62,6 +84,10 @@ function ProgressCourseCard({ course }: { course: Course }) {
         <span className="absolute top-3 left-3 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded">
           {course.level}
         </span>
+        <span className={`absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold ring-1 ${stats.status.badgeClass}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${stats.status.dotClass}`} />
+          {stats.status.label}
+        </span>
       </div>
       <div className="p-4">
         <p className="text-xs text-purple-600 font-bold uppercase tracking-wide mb-1">{course.category}</p>
@@ -74,7 +100,20 @@ function ProgressCourseCard({ course }: { course: Course }) {
             <span>{progress}%</span>
           </div>
           <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
-            <div className="h-full rounded-full bg-purple-600" style={{ width: `${progress}%` }} />
+            <div
+              className={`h-full rounded-full transition-all ${progress >= 100 ? "bg-emerald-500" : "bg-purple-600"}`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-lg bg-gray-50 px-3 py-2">
+              <p className="font-extrabold text-gray-900">{stats.completedLessons}/{stats.totalLessons}</p>
+              <p className="text-gray-500">Lessons done</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 px-3 py-2">
+              <p className="font-extrabold text-gray-900">{stats.remainingLessons}</p>
+              <p className="text-gray-500">Remaining</p>
+            </div>
           </div>
         </div>
 
@@ -129,7 +168,6 @@ function RecommendedCourseCard({ course }: { course: Course }) {
 export default function MyLearningLocalContent({
   activeTab,
   activeCourseStatus,
-  completedLessons,
   completedLessonIds,
   completedLessonActivity,
   enrolledCourses,
@@ -180,12 +218,27 @@ export default function MyLearningLocalContent({
         ? hydratedEnrolledCourses.filter((course) => (course.progress ?? 0) >= 100)
         : hydratedEnrolledCourses;
   const enrolledCount = hydratedEnrolledCourses.length;
+  const totalLessonCount = hydratedEnrolledCourses.reduce(
+    (total, course) => total + course.modules.reduce((sum, module) => sum + module.lessons.length, 0),
+    0,
+  );
+  const enrolledCompletedLessonCount = hydratedEnrolledCourses.reduce(
+    (total, course) =>
+      total +
+      course.modules.reduce(
+        (sum, module) => sum + module.lessons.filter((lesson) => lesson.completed).length,
+        0,
+      ),
+    0,
+  );
+  const completedCourseCount = hydratedEnrolledCourses.filter((course) => (course.progress ?? 0) >= 100).length;
+  const inProgressCourseCount = hydratedEnrolledCourses.filter((course) => {
+    const progress = course.progress ?? 0;
+    return progress > 0 && progress < 100;
+  }).length;
   const overallProgress =
-    enrolledCount > 0
-      ? Math.round(
-          hydratedEnrolledCourses.reduce((total, course) => total + (course.progress ?? 0), 0) /
-            enrolledCount,
-        )
+    totalLessonCount > 0
+      ? Math.round((enrolledCompletedLessonCount / totalLessonCount) * 100)
       : 0;
   const enrolledIdSet = new Set(hydratedEnrolledCourses.map((course) => course.id));
   const recommendedCourseList = recommendedCourses.filter((course) => !enrolledIdSet.has(course.id));
@@ -306,21 +359,38 @@ export default function MyLearningLocalContent({
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {[
-          { label: "Enrolled Courses", value: enrolledCount },
-          { label: "Lessons Completed", value: completedLessons },
-          { label: "Overall Progress", value: `${overallProgress}%` },
-          { label: "Certificates", value: 0 },
+          { label: "Enrolled Courses", value: enrolledCount, detail: `${inProgressCourseCount} active` },
+          { label: "Lessons Completed", value: enrolledCompletedLessonCount, detail: `${totalLessonCount} total lessons` },
+          { label: "Overall Progress", value: `${overallProgress}%`, detail: "Across all courses" },
+          { label: "Completed Courses", value: completedCourseCount, detail: "Ready for review" },
         ].map((stat) => (
-          <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-6 min-h-44">
+          <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-6 min-h-40">
             <p className="text-3xl font-extrabold text-gray-900">{stat.value}</p>
             <p className="mt-1 text-sm text-gray-500">{stat.label}</p>
+            <p className="mt-5 text-xs font-semibold text-purple-600">{stat.detail}</p>
           </div>
         ))}
       </div>
 
       {hydratedEnrolledCourses.length > 0 ? (
         <section className="mb-12">
-          <h2 className="text-xl font-extrabold text-gray-900 mb-5">Continue Learning</h2>
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-xl font-extrabold text-gray-900">Continue Learning</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {enrolledCompletedLessonCount} completed lessons, {Math.max(totalLessonCount - enrolledCompletedLessonCount, 0)} still open.
+              </p>
+            </div>
+            <div className="w-full sm:w-72">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <span>Total course progress</span>
+                <span>{overallProgress}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                <div className="h-full rounded-full bg-purple-600" style={{ width: `${overallProgress}%` }} />
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {hydratedEnrolledCourses.map((course) => (
               <ProgressCourseCard key={course.id} course={course} />
