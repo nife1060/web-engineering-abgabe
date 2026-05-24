@@ -57,3 +57,13 @@ next-env.d.ts
 
 # SQLite database shared for project
 !dev.db
+node_modules/
+.next/
+
+node_modules/
+.next/
+
+.env
+.env.local
+node_modules/
+.next/
