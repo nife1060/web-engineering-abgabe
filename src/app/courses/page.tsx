@@ -178,6 +178,7 @@ export default async function CoursesPage({
       </div>
 
       <CoursesFilterForm
+        key={[query, selectedCategory, selectedLevel, selectedPrice, selectedRating, selectedSort].join("|")}
         categoryLabels={categoryLabels}
         levels={levels}
         priceRanges={priceRanges}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type PriceRange = {
@@ -47,17 +47,6 @@ export default function CoursesFilterForm({
 }: CoursesFilterFormProps) {
   const router = useRouter();
   const [filters, setFilters] = useState<FilterValues>(initialFilters);
-
-  useEffect(() => {
-    setFilters(initialFilters);
-  }, [
-    initialFilters.query,
-    initialFilters.category,
-    initialFilters.level,
-    initialFilters.price,
-    initialFilters.rating,
-    initialFilters.sort,
-  ]);
 
   const updateFilter = (name: keyof FilterValues, value: string) => {
     setFilters((currentFilters) => ({
