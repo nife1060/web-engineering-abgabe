@@ -70,7 +70,7 @@ export default function CourseCard({ course, showProgress }: Props) {
           <div className="flex items-center justify-between gap-3">
             {hasRating ? (
               <div className="flex items-center gap-1">
-                <span className="text-yellow-400 text-sm">Star</span>
+                <span className="text-yellow-400 text-sm">★</span>
                 <span className="text-sm font-bold text-gray-800">{course.rating}</span>
                 <span className="text-xs text-gray-400">({course.studentsCount.toLocaleString()})</span>
               </div>

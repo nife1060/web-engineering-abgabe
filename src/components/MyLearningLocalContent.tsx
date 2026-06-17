@@ -280,7 +280,7 @@ export default function MyLearningLocalContent({
         }`,
         course: course.title,
         time: latestCompletedAt ? formatActivityTime(new Date(latestCompletedAt)) : "Recently",
-        marker: "OK",
+        marker: "✓",
       };
     })
     .filter((activity) => activity !== null);

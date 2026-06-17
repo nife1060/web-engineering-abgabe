@@ -552,7 +552,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
               className={`flex items-center gap-2 text-sm font-semibold transition ${index <= currentStep ? "text-purple-600" : "text-gray-400"}`}
             >
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition ${index < currentStep ? "bg-purple-600 text-white" : index === currentStep ? "bg-purple-100 text-purple-700 ring-2 ring-purple-600" : "bg-gray-100 text-gray-400"}`}>
-                {index < currentStep ? "OK" : index + 1}
+                {index < currentStep ? "✓" : index + 1}
               </div>
               <span className="hidden sm:inline">{step}</span>
             </button>
@@ -1085,7 +1085,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                 <div key={item.label} className={`p-4 rounded-xl border ${item.ok ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}`}>
                   <p className="text-xs text-gray-500 mb-1">{item.label}</p>
                   <div className="flex items-center gap-2">
-                    <span className={item.ok ? "text-green-600" : "text-red-500"}>{item.ok ? "OK" : "X"}</span>
+                    <span className={item.ok ? "text-green-600" : "text-red-500"}>{item.ok ? "✓" : "✗"}</span>
                     <p className="text-sm font-semibold text-gray-900">{item.value}</p>
                   </div>
                 </div>

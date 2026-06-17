@@ -30,12 +30,13 @@ export default async function DashboardPage() {
     ? { course: { creatorId: creatorScope } }
     : {};
 
-  const [courses, totalCourses, publishedCourses, draftCourses, enrollments, paidOrders] =
+  const [courses, totalCourses, publishedCourses, draftCourses, enrollments, paidOrders, completedProgress] =
     await Promise.all([
       prisma.course.findMany({
         where: courseWhere,
         include: {
           _count: { select: { enrollments: { where: { active: true } } } },
+          modules: { select: { _count: { select: { lessons: true } } } },
         },
       }),
       prisma.course.count({ where: courseWhere }),
@@ -43,11 +44,15 @@ export default async function DashboardPage() {
       prisma.course.count({ where: { ...courseWhere, status: "DRAFT" } }),
       prisma.enrollment.findMany({
         where: { active: true, ...courseFilter },
-        select: { userId: true },
+        select: { userId: true, courseId: true },
       }),
       prisma.order.findMany({
         where: { status: "PAID", ...courseFilter },
         select: { amount: true, courseId: true, paidAt: true, createdAt: true },
+      }),
+      prisma.progress.findMany({
+        where: { completed: true, lesson: { module: { course: courseWhere } } },
+        select: { userId: true, lesson: { select: { module: { select: { courseId: true } } } } },
       }),
     ]);
 
@@ -78,12 +83,42 @@ export default async function DashboardPage() {
   for (const order of paidOrders) {
     revenuePerCourse.set(order.courseId, (revenuePerCourse.get(order.courseId) ?? 0) + order.amount);
   }
+
+  const lessonsPerCourse = new Map<string, number>();
+  for (const course of courses) {
+    lessonsPerCourse.set(course.id, course.modules.reduce((sum, module) => sum + module._count.lessons, 0));
+  }
+  const studentsPerCourse = new Map<string, Set<string>>();
+  for (const enrollment of enrollments) {
+    const students = studentsPerCourse.get(enrollment.courseId) ?? new Set<string>();
+    students.add(enrollment.userId);
+    studentsPerCourse.set(enrollment.courseId, students);
+  }
+  const completedPerCourseUser = new Map<string, number>();
+  for (const entry of completedProgress) {
+    const key = `${entry.lesson.module.courseId}:${entry.userId}`;
+    completedPerCourseUser.set(key, (completedPerCourseUser.get(key) ?? 0) + 1);
+  }
+  // Average completion across enrolled students (0% counts in); null when not measurable.
+  function avgProgress(courseId: string): number | null {
+    const students = studentsPerCourse.get(courseId);
+    const totalLessons = lessonsPerCourse.get(courseId) ?? 0;
+    if (!students || students.size === 0 || totalLessons === 0) return null;
+    let sum = 0;
+    for (const userId of students) {
+      const completed = completedPerCourseUser.get(`${courseId}:${userId}`) ?? 0;
+      sum += Math.min(completed / totalLessons, 1);
+    }
+    return (sum / students.size) * 100;
+  }
+
   const courseStats = courses
     .map((course) => ({
       id: course.id,
       title: course.title,
       students: course._count.enrollments,
       revenue: revenuePerCourse.get(course.id) ?? 0,
+      progress: avgProgress(course.id),
       status: course.status,
     }))
     .sort((a, b) => b.revenue - a.revenue);
@@ -111,30 +146,30 @@ export default async function DashboardPage() {
           {
             label: "Total Students",
             value: distinctStudents.toLocaleString(),
-            icon: "Users",
+            icon: "👥",
             delta: `${enrollments.length.toLocaleString()} active enrollments`,
           },
           {
             label: "Total Revenue",
             value: `EUR ${totalRevenue.toFixed(2)}`,
-            icon: "EUR",
+            icon: "💶",
             delta: `${paidOrders.length} paid orders`,
           },
           {
             label: "Active Courses",
             value: publishedCourses,
-            icon: "Books",
+            icon: "📚",
             delta: `${draftCourses} in draft`,
           },
           {
             label: "All Courses",
             value: totalCourses,
-            icon: "All",
+            icon: "🗂️",
             delta: "Includes drafts",
           },
         ].map((stat) => (
           <div key={stat.label} className="bg-white border border-gray-200 rounded-2xl p-5">
-            <div className="text-xs font-bold uppercase text-purple-600 mb-2">{stat.icon}</div>
+            <div className="text-2xl mb-2 leading-none">{stat.icon}</div>
             <div className="text-2xl font-extrabold text-gray-900">{stat.value}</div>
             <div className="text-xs text-gray-500 mt-0.5">{stat.label}</div>
             <div className="text-xs text-green-600 font-medium mt-1">{stat.delta}</div>
@@ -155,13 +190,13 @@ export default async function DashboardPage() {
           ) : (
             <div className="flex items-end gap-3 h-40">
               {monthBuckets.map((month) => (
-                <div key={month.key} className="flex-1 flex flex-col items-center gap-2">
+                <div key={month.key} className="flex-1 h-full flex flex-col items-center gap-2">
                   <span className="text-xs text-gray-500">EUR {month.sales.toFixed(0)}</span>
-                  <div
-                    className="w-full bg-purple-100 rounded-t-lg relative"
-                    style={{ height: `${(month.sales / maxSales) * 100}%`, minHeight: "8px" }}
-                  >
-                    <div className="absolute inset-0 bg-purple-600 rounded-t-lg opacity-90" />
+                  <div className="w-full flex-1 flex items-end">
+                    <div
+                      className="w-full bg-purple-600 rounded-t-lg opacity-90"
+                      style={{ height: `${(month.sales / maxSales) * 100}%`, minHeight: "8px" }}
+                    />
                   </div>
                   <span className="text-xs text-gray-500">{month.label}</span>
                 </div>
@@ -181,14 +216,14 @@ export default async function DashboardPage() {
               </div>
             </Link>
             <Link href="/dashboard/courses" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition group">
-              <span className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold group-hover:bg-blue-200 transition">Go</span>
+              <span className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold group-hover:bg-blue-200 transition">→</span>
               <div className="text-left">
                 <p className="text-sm font-semibold text-gray-900">Manage courses</p>
                 <p className="text-xs text-gray-400">Edit content & pricing</p>
               </div>
             </Link>
             <Link href="/dashboard/media" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition group">
-              <span className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold group-hover:bg-blue-200 transition">Go</span>
+              <span className="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold group-hover:bg-blue-200 transition">→</span>
               <div className="text-left">
                 <p className="text-sm font-semibold text-gray-900">Media library</p>
                 <p className="text-xs text-gray-400">Upload videos & files</p>
@@ -215,6 +250,7 @@ export default async function DashboardPage() {
                   <th className="text-left px-6 py-3">Course</th>
                   <th className="text-left px-6 py-3">Status</th>
                   <th className="text-right px-6 py-3">Students</th>
+                  <th className="text-left px-6 py-3">Avg. Progress</th>
                   <th className="text-right px-6 py-3">Revenue</th>
                 </tr>
               </thead>
@@ -238,6 +274,18 @@ export default async function DashboardPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right text-sm text-gray-700">{course.students.toLocaleString()}</td>
+                    <td className="px-6 py-4">
+                      {course.progress === null ? (
+                        <span className="text-sm text-gray-400">—</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden min-w-[80px]">
+                            <div className="h-full bg-purple-600 rounded-full" style={{ width: `${course.progress}%` }} />
+                          </div>
+                          <span className="text-sm text-gray-700 tabular-nums w-10 text-right">{course.progress.toFixed(0)}%</span>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-right text-sm font-semibold text-green-600">EUR {course.revenue.toFixed(2)}</td>
                   </tr>
                 ))}

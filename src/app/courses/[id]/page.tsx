@@ -97,7 +97,7 @@ export default async function CourseDetailPage({ params }: Props) {
               <span className="flex items-center gap-1.5">
                 {hasRating ? (
                   <>
-                    <span className="text-yellow-400">Star</span>
+                    <span className="text-yellow-400">★</span>
                     <strong className="text-white">{course.rating}</strong>
                     <span>({course.studentsCount.toLocaleString()} students)</span>
                   </>
@@ -161,9 +161,9 @@ export default async function CourseDetailPage({ params }: Props) {
 
                 <p className="text-xs text-gray-400 text-center mb-4">30-day money-back guarantee</p>
                 <ul className="space-y-2 text-xs text-gray-600">
-                  <li className="flex items-center gap-2"><span className="text-green-500">OK</span> Full lifetime access</li>
-                  <li className="flex items-center gap-2"><span className="text-green-500">OK</span> Access on mobile & desktop</li>
-                  <li className="flex items-center gap-2"><span className="text-green-500">OK</span> Certificate of completion</li>
+                  <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Full lifetime access</li>
+                  <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Access on mobile & desktop</li>
+                  <li className="flex items-center gap-2"><span className="text-green-500">✓</span> Certificate of completion</li>
                 </ul>
               </div>
             </div>
