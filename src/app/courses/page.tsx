@@ -33,25 +33,55 @@ function firstValue(value: string | string[] | undefined, fallback = "") {
   return value ?? fallback;
 }
 
-function matchesPrice(course: Course, selectedPrice: string) {
+type CourseWithFreeFields = Omit<Course, "price"> & {
+  price?: number | string | null;
+  free?: boolean;
+  isFree?: boolean;
+  pricingType?: string | null;
+  type?: string | null;
+};
+
+function coursePriceValue(course: CourseWithFreeFields) {
+  const price = Number(course.price ?? 0);
+  return Number.isFinite(price) ? price : 0;
+}
+
+function isFreeCourse(course: CourseWithFreeFields) {
+  const price = course.price;
+  const freeMarkers = [course.pricingModel, course.pricingType, course.type];
+
+  return (
+    freeMarkers.some((marker) => typeof marker === "string" && marker.toLowerCase() === "free") ||
+    price === null ||
+    price === undefined ||
+    price === 0 ||
+    price === "0" ||
+    course.free === true ||
+    course.isFree === true
+  );
+}
+
+function matchesPrice(course: CourseWithFreeFields, selectedPrice: string) {
   if (selectedPrice === "any") {
     return true;
   }
 
-  if ((course.pricingModel ?? "PAID") === "FREE" || course.price === 0) {
-    return selectedPrice === "free";
+  if (selectedPrice === "free") {
+    return isFreeCourse(course);
   }
 
+  const price = coursePriceValue(course);
+
   if (selectedPrice === "under-50") {
-    return course.price < 50;
+    return price < 50;
   }
 
   if (selectedPrice === "50-100") {
-    return course.price >= 50 && course.price <= 100;
+    return price >= 50 && price <= 100;
   }
 
   if (selectedPrice === "over-100") {
-    return course.price > 100;
+    return price > 100;
   }
 
   return true;
@@ -69,11 +99,11 @@ function sortCourses(courses: Course[], selectedSort: string) {
   }
 
   if (selectedSort === "price-low") {
-    return sortedCourses.sort((a, b) => a.price - b.price);
+    return sortedCourses.sort((a, b) => coursePriceValue(a) - coursePriceValue(b));
   }
 
   if (selectedSort === "price-high") {
-    return sortedCourses.sort((a, b) => b.price - a.price);
+    return sortedCourses.sort((a, b) => coursePriceValue(b) - coursePriceValue(a));
   }
 
   if (selectedSort === "title-asc") {
@@ -126,10 +156,10 @@ export default async function CoursesPage({
     title: course.title,
     description: course.description,
     instructor: course.creator.name,
-    price: course.price,
-    subscriptionPrice: course.subscriptionPrice,
-    pricingModel: course.pricingModel,
-    rating: 4.8,
+    price: course.price ?? 0,
+    subscriptionPrice: course.subscriptionPrice ?? 0,
+    pricingModel: course.pricingModel ?? "PAID",
+    rating: 0,
     studentsCount: 0,
     category: course.categoryName,
     level: course.level as "Beginner" | "Intermediate" | "Advanced",
@@ -153,6 +183,9 @@ export default async function CoursesPage({
   const categoryLabels = ["All", ...categories.map((category) => category.name)];
   const minRating = selectedRating === "Any" ? 0 : Number.parseFloat(selectedRating);
   const normalizedQuery = query.toLowerCase();
+  const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
+  const searchesForFree = queryTerms.includes("free");
+  const textQuery = queryTerms.filter((term) => term !== "free").join(" ");
   const filteredCourses = sortCourses(
     courses.filter((course) => {
       const searchableText = [course.title, course.description, course.instructor, course.category]
@@ -160,7 +193,9 @@ export default async function CoursesPage({
         .toLowerCase();
 
       return (
-        (!normalizedQuery || searchableText.includes(normalizedQuery)) &&
+        (!normalizedQuery ||
+          ((searchesForFree ? isFreeCourse(course) : true) &&
+            (!textQuery || searchableText.includes(textQuery)))) &&
         (selectedCategory === "All" || course.category === selectedCategory) &&
         (selectedLevel === "All Levels" || course.level === selectedLevel) &&
         matchesPrice(course, selectedPrice) &&

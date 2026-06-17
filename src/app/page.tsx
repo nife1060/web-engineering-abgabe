@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import CourseCard from "@/components/CourseCard";
+import { getSession } from "@/lib/auth";
 import { mockCourses } from "@/lib/data";
 
 const features = [
@@ -18,28 +19,20 @@ const testimonials = [
   { name: "Jana R.", role: "UX Designer", text: "The structured learning path helped me transition careers. Worth every cent.", avatar: "JR" },
 ];
 
-const plans = [
-  {
-    name: "Free", price: "€0", period: "forever",
-    description: "Get started and explore the platform.",
-    features: ["Browse all courses", "Enroll in 1 free course", "Basic progress tracking"],
-    cta: "Get started free", href: "/register", highlight: false,
-  },
-  {
-    name: "Pro", price: "€19", period: "per month",
-    description: "Everything you need to learn without limits.",
-    features: ["Unlimited course access", "Advanced progress tracking", "Certificate of completion", "Priority support"],
-    cta: "Start free trial", href: "/register", highlight: true,
-  },
-  {
-    name: "Creator", price: "€39", period: "per month",
-    description: "Build, publish, and grow your course business.",
-    features: ["All Pro features", "Unlimited course creation", "Revenue analytics dashboard", "Custom pricing per course", "Stripe payout integration"],
-    cta: "Start creating", href: "/register", highlight: false,
-  },
-];
-
-export default function Home() {
+export default async function Home() {
+  const session = await getSession();
+  const heroButtons = session
+    ? [
+        { href: "/courses", label: "Browse Courses", variant: "primary" },
+        ...(session.role === "CREATOR"
+          ? [{ href: "/creator/courses/new", label: "Create Course", variant: "secondary" }]
+          : []),
+        ...(session.role === "ADMIN" ? [{ href: "/admin", label: "Admin", variant: "secondary" }] : []),
+      ]
+    : [
+        { href: "/register", label: "Start free trial", variant: "primary" },
+        { href: "/courses", label: "Browse courses", variant: "secondary" },
+      ];
   const featuredCourses = mockCourses.slice(0, 3);
 
   return (
@@ -53,7 +46,7 @@ export default function Home() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32 flex flex-col lg:flex-row items-center gap-12">
           <div className="flex-1 text-center lg:text-left">
             <span className="inline-block bg-purple-500/30 border border-purple-400/40 text-purple-200 text-sm font-semibold px-4 py-1.5 rounded-full mb-6">
-              The SaaS Course Platform
+              Your Platform for Creating and Selling Courses
             </span>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
               Learn anything.<br />
@@ -64,12 +57,19 @@ export default function Home() {
               simple to discover, create, and sell online courses.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Link href="/register" className="bg-white text-purple-900 font-bold px-8 py-4 rounded-xl hover:bg-purple-50 transition text-lg shadow-lg">
-                Start free trial
-              </Link>
-              <Link href="/courses" className="border border-white/40 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/10 transition text-lg">
-                Browse courses
-              </Link>
+              {heroButtons.map((button) => (
+                <Link
+                  key={button.href}
+                  href={button.href}
+                  className={
+                    button.variant === "primary"
+                      ? "bg-white text-purple-900 font-bold px-8 py-4 rounded-xl hover:bg-purple-50 transition text-lg shadow-lg"
+                      : "border border-white/40 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/10 transition text-lg"
+                  }
+                >
+                  {button.label}
+                </Link>
+              ))}
             </div>
             <p className="mt-5 text-sm text-purple-300">No credit card required · Cancel anytime</p>
           </div>
@@ -153,48 +153,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-4">Simple, transparent pricing</h2>
-            <p className="text-gray-500">Start free. Upgrade when you&apos;re ready.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan) => (
-              <div key={plan.name} className={`rounded-2xl p-8 border-2 flex flex-col ${plan.highlight ? "border-purple-600 bg-purple-600 text-white shadow-2xl scale-105" : "border-gray-200 bg-white text-gray-900"}`}>
-                {plan.highlight && <span className="inline-block bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full mb-4 w-fit">Most Popular</span>}
-                <h3 className={`text-xl font-bold mb-1 ${plan.highlight ? "text-white" : "text-gray-900"}`}>{plan.name}</h3>
-                <p className={`text-sm mb-5 ${plan.highlight ? "text-purple-200" : "text-gray-500"}`}>{plan.description}</p>
-                <div className="mb-6">
-                  <span className="text-4xl font-extrabold">{plan.price}</span>
-                  <span className={`text-sm ml-1 ${plan.highlight ? "text-purple-200" : "text-gray-400"}`}>/{plan.period}</span>
-                </div>
-                <ul className="flex-1 space-y-3 mb-8">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <span className={plan.highlight ? "text-green-300" : "text-green-500"}>✓</span>
-                      <span className={plan.highlight ? "text-purple-100" : "text-gray-600"}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link href={plan.href} className={`text-center font-semibold py-3 rounded-xl transition ${plan.highlight ? "bg-white text-purple-700 hover:bg-purple-50" : "bg-purple-600 text-white hover:bg-purple-700"}`}>
-                  {plan.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA Banner */}
       <section className="bg-purple-700 py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to start your journey?</h2>
-          <p className="text-purple-200 mb-8 text-lg">Join over 12,000 learners already on Learnify. Sign up free today.</p>
+          <p className="text-purple-200 mb-8 text-lg">
+            {session
+              ? "Continue learning with over 12,000 learners already on Learnify."
+              : "Join over 12,000 learners already on Learnify. Sign up free today."}
+          </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register" className="bg-white text-purple-700 font-bold px-8 py-4 rounded-xl hover:bg-purple-50 transition text-lg">Sign up free</Link>
-            <Link href="/courses" className="border border-white/40 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/10 transition text-lg">Browse courses</Link>
+            <Link href="/courses" className="bg-white text-purple-700 font-bold px-8 py-4 rounded-xl hover:bg-purple-50 transition text-lg">Start now</Link>
           </div>
         </div>
       </section>
@@ -216,29 +185,34 @@ export default function Home() {
                 <ul className="space-y-2">
                   <li><Link href="/courses" className="hover:text-white transition">Browse Courses</Link></li>
                   <li><Link href="/dashboard" className="hover:text-white transition">Teach on Learnify</Link></li>
-                  <li><Link href="#pricing" className="hover:text-white transition">Pricing</Link></li>
                 </ul>
               </div>
               <div>
                 <h4 className="font-semibold text-white mb-3">Account</h4>
                 <ul className="space-y-2">
-                  <li><Link href="/login" className="hover:text-white transition">Log in</Link></li>
-                  <li><Link href="/register" className="hover:text-white transition">Sign up</Link></li>
-                  <li><Link href="/dashboard" className="hover:text-white transition">Dashboard</Link></li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold text-white mb-3">Company</h4>
-                <ul className="space-y-2">
-                  <li><span>About</span></li>
-                  <li><span>Blog</span></li>
-                  <li><span>Contact</span></li>
+                  {session ? (
+                    <>
+                      <li><Link href="/mylearning" className="hover:text-white transition">My Learning</Link></li>
+                      {(session.role === "CREATOR" || session.role === "ADMIN") && (
+                        <>
+                          <li><Link href="/dashboard" className="hover:text-white transition">Dashboard</Link></li>
+                          <li><Link href="/dashboard/courses" className="hover:text-white transition">My Courses</Link></li>
+                        </>
+                      )}
+                      {session.role === "ADMIN" && <li><Link href="/admin" className="hover:text-white transition">Admin</Link></li>}
+                    </>
+                  ) : (
+                    <>
+                      <li><Link href="/login" className="hover:text-white transition">Log in</Link></li>
+                      <li><Link href="/register" className="hover:text-white transition">Sign up</Link></li>
+                    </>
+                  )}
                 </ul>
               </div>
             </div>
           </div>
           <div className="mt-10 pt-6 border-t border-gray-800 text-xs text-center">
-            © {new Date().getFullYear()} Learnify. This is a prototype / preview website — features and content are not final.
+            © 2026 Learnify. Course platform for learners and creators.
           </div>
         </div>
       </footer>

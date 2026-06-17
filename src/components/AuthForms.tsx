@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { FormEvent, useActionState, useTransition } from "react";
 import { loginUser, registerUser, type AuthFormState } from "@/app/actions/auth";
 
 const initialState: AuthFormState = {};
@@ -11,9 +11,16 @@ const inputClass =
 
 export function RegisterForm() {
   const [state, action, pending] = useActionState(registerUser, initialState);
+  const [isSubmitting, startSubmit] = useTransition();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startSubmit(() => action(formData));
+  }
 
   return (
-    <form action={action} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {state.error && (
         <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           {state.error}
@@ -65,10 +72,10 @@ export function RegisterForm() {
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || isSubmitting}
         className="block w-full text-center bg-purple-600 text-white font-semibold py-3 rounded-xl hover:bg-purple-700 transition disabled:cursor-not-allowed disabled:bg-purple-300"
       >
-        {pending ? "Creating account..." : "Create account"}
+        {pending || isSubmitting ? "Creating account..." : "Create account"}
       </button>
     </form>
   );
@@ -76,9 +83,16 @@ export function RegisterForm() {
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(loginUser, initialState);
+  const [isSubmitting, startSubmit] = useTransition();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startSubmit(() => action(formData));
+  }
 
   return (
-    <form action={action} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {state.error && (
         <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           {state.error}
@@ -100,10 +114,10 @@ export function LoginForm() {
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || isSubmitting}
         className="block w-full text-center bg-purple-600 text-white font-semibold py-3 rounded-xl hover:bg-purple-700 transition disabled:cursor-not-allowed disabled:bg-purple-300"
       >
-        {pending ? "Logging in..." : "Log in"}
+        {pending || isSubmitting ? "Logging in..." : "Log in"}
       </button>
 
       <p className="text-center text-sm text-gray-500">

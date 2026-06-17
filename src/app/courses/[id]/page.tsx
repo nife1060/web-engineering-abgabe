@@ -52,7 +52,7 @@ export default async function CourseDetailPage({ params }: Props) {
       title: dbCourse.title,
       description: dbCourse.description,
       category: dbCourse.categoryName,
-      rating: 4.8,
+      rating: 0,
       studentsCount: 0,
       instructor: dbCourse.creator.name,
       level: dbCourse.level as "Beginner" | "Intermediate" | "Advanced",
@@ -80,6 +80,7 @@ export default async function CourseDetailPage({ params }: Props) {
   const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
   const priceLabel = formatCoursePrice(pricingModel, course.price, subscriptionPrice);
   const ctaLabel = courseCtaLabel(pricingModel, course.price, subscriptionPrice);
+  const hasRating = Number.isFinite(course.rating) && course.rating > 0;
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -94,9 +95,15 @@ export default async function CourseDetailPage({ params }: Props) {
 
             <div className="flex flex-wrap gap-4 text-sm text-gray-300 mb-6">
               <span className="flex items-center gap-1.5">
-                <span className="text-yellow-400">Star</span>
-                <strong className="text-white">{course.rating}</strong>
-                <span>({course.studentsCount.toLocaleString()} students)</span>
+                {hasRating ? (
+                  <>
+                    <span className="text-yellow-400">Star</span>
+                    <strong className="text-white">{course.rating}</strong>
+                    <span>({course.studentsCount.toLocaleString()} students)</span>
+                  </>
+                ) : (
+                  <span>No ratings yet</span>
+                )}
               </span>
               <span>-</span>
               <span>Instructor: <strong className="text-white">{course.instructor}</strong></span>

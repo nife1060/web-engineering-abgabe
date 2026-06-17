@@ -130,6 +130,7 @@ function ProgressCourseCard({ course }: { course: Course }) {
 
 function RecommendedCourseCard({ course }: { course: Course }) {
   const priceLabel = formatCoursePrice(course.pricingModel ?? "PAID", course.price, course.subscriptionPrice ?? 0);
+  const hasRating = Number.isFinite(course.rating) && course.rating > 0;
 
   return (
     <Link
@@ -153,11 +154,15 @@ function RecommendedCourseCard({ course }: { course: Course }) {
         </h3>
         <p className="text-xs text-gray-500 mt-1">{course.instructor}</p>
         <div className="mt-5 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-yellow-400" />
-            <span className="text-sm font-extrabold text-gray-900">{course.rating}</span>
-            <span className="text-xs text-gray-400">({course.studentsCount.toLocaleString()})</span>
-          </div>
+          {hasRating ? (
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-yellow-400" />
+              <span className="text-sm font-extrabold text-gray-900">{course.rating}</span>
+              <span className="text-xs text-gray-400">({course.studentsCount.toLocaleString()})</span>
+            </div>
+          ) : (
+            <span className="text-xs font-semibold text-gray-400">No ratings yet</span>
+          )}
           <span className="text-sm font-extrabold text-gray-900">{priceLabel}</span>
         </div>
       </div>

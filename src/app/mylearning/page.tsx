@@ -112,7 +112,7 @@ export default async function MyLearningPage({
     price: course.price,
     subscriptionPrice: course.subscriptionPrice,
     pricingModel: course.pricingModel,
-    rating: 4.8,
+    rating: 0,
     studentsCount: 0,
     category: course.categoryName,
     level: course.level as "Beginner" | "Intermediate" | "Advanced",

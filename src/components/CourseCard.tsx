@@ -16,6 +16,7 @@ export default function CourseCard({ course, showProgress }: Props) {
   const totalLessons = lessons.length;
   const progress = course.progress ?? (totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0);
   const statusLabel = progress >= 100 ? "Completed" : progress > 0 ? "In Progress" : "Not Started";
+  const hasRating = Number.isFinite(course.rating) && course.rating > 0;
 
   const inner = (
     <>
@@ -67,11 +68,15 @@ export default function CourseCard({ course, showProgress }: Props) {
           </div>
         ) : (
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1">
-              <span className="text-yellow-400 text-sm">Star</span>
-              <span className="text-sm font-bold text-gray-800">{course.rating}</span>
-              <span className="text-xs text-gray-400">({course.studentsCount.toLocaleString()})</span>
-            </div>
+            {hasRating ? (
+              <div className="flex items-center gap-1">
+                <span className="text-yellow-400 text-sm">Star</span>
+                <span className="text-sm font-bold text-gray-800">{course.rating}</span>
+                <span className="text-xs text-gray-400">({course.studentsCount.toLocaleString()})</span>
+              </div>
+            ) : (
+              <span className="text-xs font-semibold text-gray-400">No ratings yet</span>
+            )}
             <span className="font-bold text-gray-900 text-right">{priceLabel}</span>
           </div>
         )}

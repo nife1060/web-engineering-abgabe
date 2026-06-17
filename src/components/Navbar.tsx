@@ -15,7 +15,7 @@ export default async function Navbar() {
     { href: "/mylearning", label: "My Learning", show: Boolean(role) },
     { href: "/account/orders", label: "My Orders", show: Boolean(role) },
     { href: "/dashboard", label: "Dashboard", show: role === "CREATOR" || role === "ADMIN" },
-    { href: "/dashboard/courses", label: "Meine Kurse", show: role === "CREATOR" || role === "ADMIN" },
+    { href: "/dashboard/courses", label: "My Courses", show: role === "CREATOR" || role === "ADMIN" },
     { href: "/dashboard/media", label: "Media Library", show: role === "CREATOR" || role === "ADMIN" },
     { href: "/admin", label: "Admin", show: role === "ADMIN" },
   ].filter((link) => link.show);

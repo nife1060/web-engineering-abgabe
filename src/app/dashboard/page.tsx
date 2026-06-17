@@ -201,7 +201,7 @@ export default async function DashboardPage() {
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="font-bold text-gray-900">Course Performance</h2>
-          <Link href="/dashboard/courses" className="text-sm text-purple-600 hover:text-purple-800 font-medium">Meine Kurse</Link>
+          <Link href="/dashboard/courses" className="text-sm text-purple-600 hover:text-purple-800 font-medium">My Courses</Link>
         </div>
         <div className="overflow-x-auto">
           {courseStats.length === 0 ? (

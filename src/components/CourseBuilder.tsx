@@ -144,10 +144,24 @@ function formatMoney(value: number) {
   return `${value.toFixed(2).replace(".", ",")} EUR`;
 }
 
+function priceInputValue(value: number) {
+  return Number.isFinite(value) ? String(value) : "";
+}
+
+function parsePriceInput(value: string) {
+  const price = Number(value);
+  return Number.isFinite(price) ? price : 0;
+}
+
 export default function CourseBuilder({ categories, initialCourse }: Props) {
   const router = useRouter();
+  const initialDraft = initialCourse ?? defaultCourse(categories);
   const [currentStep, setCurrentStep] = useState(0);
-  const [course, setCourse] = useState<CourseDraft>(initialCourse ?? defaultCourse(categories));
+  const [course, setCourse] = useState<CourseDraft>(initialDraft);
+  const [priceInput, setPriceInput] = useState(() => priceInputValue(initialDraft.price));
+  const [subscriptionPriceInput, setSubscriptionPriceInput] = useState(() =>
+    priceInputValue(initialDraft.subscriptionPrice),
+  );
   const [editingLessonId, setEditingLessonId] = useState(course.modules[0]?.lessons[0]?.id ?? "");
   const [thumbnailPreview, setThumbnailPreview] = useState(course.thumbnailUrl);
   const [thumbnailFileName, setThumbnailFileName] = useState(course.thumbnailUrl ? course.thumbnailUrl.split("/").pop() ?? "" : "");
@@ -454,21 +468,12 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     if (course.pricingModel === "SUBSCRIPTION" && (!Number.isFinite(course.subscriptionPrice) || course.subscriptionPrice <= 0)) {
       errors.push("Subscription Courses brauchen einen gueltigen monatlichen Preis.");
     }
-    if (course.pricingModel === "SUBSCRIPTION" && course.subscriptionPrice > 100) {
-      errors.push("Der monatliche Preis darf maximal 100 € betragen.");
-    }
-
     return errors;
   }
 
   async function saveCourse(status: CourseStatus) {
     setMessage("");
     setError("");
-
-    if (course.pricingModel === "SUBSCRIPTION" && course.subscriptionPrice > 100) {
-      setError("Der monatliche Preis darf maximal 100 € betragen.");
-      return;
-    }
 
     if (status === "PUBLISHED") {
       const validationErrors = validatePublish();
@@ -482,14 +487,20 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
 
     try {
       const selectedCategory = categories.find((category) => category.id === course.categoryId);
+      const normalizedCourse = {
+        ...course,
+        price: course.pricingModel === "PAID" ? parsePriceInput(priceInput) : 0,
+        subscriptionPrice:
+          course.pricingModel === "SUBSCRIPTION" ? parsePriceInput(subscriptionPriceInput) : 0,
+      };
       const response = await fetch("/api/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...course,
-          categoryName: selectedCategory?.name ?? course.categoryName,
+          ...normalizedCourse,
+          categoryName: selectedCategory?.name ?? normalizedCourse.categoryName,
           status,
-          modules: course.modules.map((mod) => ({
+          modules: normalizedCourse.modules.map((mod) => ({
             ...mod,
             lessons: mod.lessons.map((lesson) => ({
               ...lesson,
@@ -1005,30 +1016,26 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                     <input
                       type="number"
                       min="0"
-                      max={course.pricingModel === "SUBSCRIPTION" ? 100 : undefined}
                       step="0.01"
-                      value={course.pricingModel === "SUBSCRIPTION" ? course.subscriptionPrice : course.price}
-                      onChange={(event) =>
-                        updateCourse(
-                          course.pricingModel === "SUBSCRIPTION"
-                            ? { subscriptionPrice: Number(event.target.value) }
-                            : { price: Number(event.target.value) },
-                        )
-                      }
+                      value={course.pricingModel === "SUBSCRIPTION" ? subscriptionPriceInput : priceInput}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (course.pricingModel === "SUBSCRIPTION") {
+                          setSubscriptionPriceInput(value);
+                          updateCourse({ subscriptionPrice: value === "" ? 0 : parsePriceInput(value) });
+                          return;
+                        }
+
+                        setPriceInput(value);
+                        updateCourse({ price: value === "" ? 0 : parsePriceInput(value) });
+                      }}
                       className="w-full pl-14 pr-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
                   {course.pricingModel === "SUBSCRIPTION" && (
-                    <>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Die Zahlung wird monatlich jeweils zum 1. des Monats abgebucht.
-                      </p>
-                      {course.subscriptionPrice > 100 && (
-                        <p className="text-xs text-red-600 font-semibold mt-2">
-                          Der monatliche Preis darf maximal 100 € betragen.
-                        </p>
-                      )}
-                    </>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Die Zahlung wird monatlich jeweils zum 1. des Monats abgebucht.
+                    </p>
                   )}
                 </div>
               )}

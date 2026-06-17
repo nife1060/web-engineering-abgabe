@@ -32,7 +32,7 @@ export default async function CreatorCoursesPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900">Meine Kurse</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900">My Courses</h1>
           <p className="text-gray-500 mt-1">
             {session.role === "ADMIN" ? "Alle Kurse der Plattform." : "Deine erstellten Kurse und Entwuerfe."}
           </p>

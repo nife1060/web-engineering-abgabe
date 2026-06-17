@@ -95,9 +95,6 @@ function validatePublish(input: CourseInput) {
     if (!Number.isFinite(subscriptionPrice) || subscriptionPrice <= 0) {
       errors.push("Subscription Courses brauchen einen gueltigen monatlichen Preis.");
     }
-    if (subscriptionPrice > 100) {
-      errors.push("Der monatliche Preis darf maximal 100 € betragen.");
-    }
   }
 
   return errors;
@@ -162,9 +159,6 @@ export async function POST(request: Request) {
   const pricingModel = asPricingModel(input.pricingModel);
   const price = pricingModel === "PAID" ? Number(input.price ?? 0) : 0;
   const subscriptionPrice = pricingModel === "SUBSCRIPTION" ? Number(input.subscriptionPrice ?? 0) : 0;
-  if (pricingModel === "SUBSCRIPTION" && subscriptionPrice > 100) {
-    return NextResponse.json({ error: "Der monatliche Preis darf maximal 100 € betragen." }, { status: 400 });
-  }
   const modules = input.modules ?? [];
 
   const savedCourse = await prisma.$transaction(async (tx) => {
