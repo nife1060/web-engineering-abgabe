@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CourseStatus, PricingModel } from "@/generated/prisma/enums";
 import { formatCoursePrice } from "@/lib/course-format";
+import DeleteCourseButton from "@/components/DeleteCourseButton";
 
 type Props = {
   course: {
@@ -69,6 +70,10 @@ export default function CreatorCourseCard({ course }: Props) {
           <Link href={`/courses/${course.id}`} className="flex-1 text-center border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition text-sm">
             Ansehen
           </Link>
+        </div>
+
+        <div className="mt-3">
+          <DeleteCourseButton courseId={course.id} courseTitle={course.title} />
         </div>
       </div>
     </div>
