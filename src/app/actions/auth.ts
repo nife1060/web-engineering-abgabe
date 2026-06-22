@@ -9,14 +9,14 @@ export type AuthFormState = {
   error?: string;
 };
 
-const roles: Role[] = ["USER", "CREATOR", "ADMIN"];
+const registrationRoles: Role[] = ["USER", "CREATOR"];
 
 function asText(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
 
 function asRole(value: FormDataEntryValue | null): Role | null {
-  return typeof value === "string" && roles.includes(value as Role)
+  return typeof value === "string" && registrationRoles.includes(value as Role)
     ? (value as Role)
     : null;
 }
@@ -73,6 +73,10 @@ export async function loginUser(
 
   if (!user || user.password !== password) {
     return { error: "E-Mail oder Passwort ist nicht korrekt." };
+  }
+
+  if (user.role === "ADMIN") {
+    return { error: "Admin-Zugänge sind deaktiviert." };
   }
 
   await setSession(user.id, user.role);

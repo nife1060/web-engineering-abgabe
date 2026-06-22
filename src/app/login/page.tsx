@@ -16,14 +16,6 @@ export default function LoginPage() {
           <LoginForm />
         </div>
 
-        <div className="mt-6 bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-700">
-          <p className="font-semibold mb-2">Prototype Hinweis</p>
-          <p>
-            Registriere zuerst einen Account mit deiner gewünschten Rolle. Danach leitet der Login
-            passend zur Rolle weiter.
-          </p>
-        </div>
-
         <p className="mt-6 text-center text-sm text-gray-500">
           Back to{" "}
           <Link href="/" className="text-purple-600 font-semibold hover:text-purple-800">

@@ -10,7 +10,7 @@ export type Session = {
 const userIdCookie = "learninghub_user_id";
 const roleCookie = "learninghub_user_role";
 
-const roles: Role[] = ["ADMIN", "CREATOR", "USER"];
+const roles: Role[] = ["CREATOR", "USER"];
 
 export async function getSession(): Promise<Session | null> {
   const cookieStore = await cookies();
@@ -43,7 +43,6 @@ export async function clearSession() {
 }
 
 export function redirectForRole(role: Role): never {
-  if (role === "ADMIN") redirect("/admin");
   if (role === "CREATOR") redirect("/dashboard");
   redirect("/courses");
 }

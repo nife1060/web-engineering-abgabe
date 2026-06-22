@@ -178,9 +178,6 @@ export const uiTranslations: Record<Locale, Record<string, string>> = {
 
     "Welcome back": "Willkommen zurück",
     "Log in to your Learnify account": "Melde dich in deinem Learnify-Konto an",
-    "Prototype Hinweis": "Prototyp-Hinweis",
-    "Registriere zuerst einen Account mit deiner gewünschten Rolle. Danach leitet der Login passend zur Rolle weiter.":
-      "Registriere zuerst einen Account mit deiner gewünschten Rolle. Danach leitet der Login passend zur Rolle weiter.",
     "Back to": "Zurück zu",
     "Email address": "E-Mail-Adresse",
     Password: "Passwort",
