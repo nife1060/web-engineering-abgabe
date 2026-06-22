@@ -1,12 +1,17 @@
 import Link from "next/link";
 import Image from "next/image";
+import { cookies } from "next/headers";
 import { logoutUser } from "@/app/actions/auth";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { getSession } from "@/lib/auth";
+import { normalizeLocale } from "@/lib/i18n";
 
 const linkClass = "text-gray-600 hover:text-gray-900 text-sm font-medium px-4";
 const mobileLinkClass = "text-gray-700 text-sm font-medium";
 
 export default async function Navbar() {
+  const cookieStore = await cookies();
+  const locale = normalizeLocale(cookieStore.get("learnify-locale")?.value);
   const session = await getSession();
   const role = session?.role;
 
@@ -41,6 +46,7 @@ export default async function Navbar() {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher initialLocale={locale} />
             {role ? (
               <form action={logoutUser}>
                 <button
@@ -98,6 +104,9 @@ export default async function Navbar() {
                   </Link>
                 </>
               )}
+              <div className="pt-2 border-t border-gray-100">
+                <LanguageSwitcher initialLocale={locale} />
+              </div>
             </div>
           </details>
         </div>

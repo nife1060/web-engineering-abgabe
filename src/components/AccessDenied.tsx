@@ -9,7 +9,7 @@ export default function AccessDenied() {
         </div>
         <h1 className="text-2xl font-extrabold text-gray-900">Access denied</h1>
         <p className="text-gray-500 mt-2 text-sm">
-          Dein Account hat keine Berechtigung fuer diesen Bereich.
+          Dein Account hat keine Berechtigung für diesen Bereich.
         </p>
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/courses" className="bg-purple-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-purple-700 transition text-sm">

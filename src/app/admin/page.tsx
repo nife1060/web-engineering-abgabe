@@ -100,7 +100,7 @@ export default async function AdminPage() {
               {users.length === 0 && (
                 <tr>
                   <td colSpan={3} className="px-5 py-10 text-center text-sm text-gray-500">
-                    Noch keine User vorhanden. Lege den ersten Account ueber Register an.
+                    Noch keine User vorhanden. Lege den ersten Account über Register an.
                   </td>
                 </tr>
               )}

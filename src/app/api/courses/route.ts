@@ -88,12 +88,12 @@ function validatePublish(input: CourseInput) {
   if (modules.length === 0) errors.push("Mindestens ein Modul ist erforderlich.");
   if (lessonCount === 0) errors.push("Mindestens eine Lektion ist erforderlich.");
   if (pricingModel === "PAID" && (!Number.isFinite(price) || price <= 0)) {
-    errors.push("Paid Courses brauchen einen gueltigen Preis.");
+    errors.push("Paid Courses brauchen einen gültigen Preis.");
   }
   if (pricingModel === "SUBSCRIPTION") {
     const subscriptionPrice = Number(input.subscriptionPrice ?? 0);
     if (!Number.isFinite(subscriptionPrice) || subscriptionPrice <= 0) {
-      errors.push("Subscription Courses brauchen einen gueltigen monatlichen Preis.");
+      errors.push("Subscription Courses brauchen einen gültigen monatlichen Preis.");
     }
   }
 

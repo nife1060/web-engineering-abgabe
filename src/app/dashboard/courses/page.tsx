@@ -34,7 +34,7 @@ export default async function CreatorCoursesPage() {
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900">My Courses</h1>
           <p className="text-gray-500 mt-1">
-            {session.role === "ADMIN" ? "Alle Kurse der Plattform." : "Deine erstellten Kurse und Entwuerfe."}
+            {session.role === "ADMIN" ? "Alle Kurse der Plattform." : "Deine erstellten Kurse und Entwürfe."}
           </p>
         </div>
         <div className="flex gap-3">

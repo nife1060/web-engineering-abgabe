@@ -15,7 +15,7 @@ export default function DeleteCourseButton({ courseId, courseTitle }: Props) {
 
   async function handleDelete() {
     const confirmed = window.confirm(
-      `Kurs "${courseTitle || "Untitled course"}" wirklich loeschen? Alle Module, Lektionen und Einschreibungen werden entfernt. Das kann nicht rueckgaengig gemacht werden.`,
+      `Kurs "${courseTitle || "Untitled course"}" wirklich löschen? Alle Module, Lektionen und Einschreibungen werden entfernt. Das kann nicht rückgängig gemacht werden.`,
     );
 
     if (!confirmed) {
@@ -30,12 +30,12 @@ export default function DeleteCourseButton({ courseId, courseTitle }: Props) {
 
       if (!response.ok) {
         const data = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(data?.error ?? "Kurs konnte nicht geloescht werden.");
+        throw new Error(data?.error ?? "Kurs konnte nicht gelöscht werden.");
       }
 
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Kurs konnte nicht geloescht werden.");
+      setError(err instanceof Error ? err.message : "Kurs konnte nicht gelöscht werden.");
       setIsDeleting(false);
     }
   }

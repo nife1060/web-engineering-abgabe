@@ -19,7 +19,7 @@ export default function LoginPage() {
         <div className="mt-6 bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-700">
           <p className="font-semibold mb-2">Prototype Hinweis</p>
           <p>
-            Registriere zuerst einen Account mit deiner gewuenschten Rolle. Danach leitet der Login
+            Registriere zuerst einen Account mit deiner gewünschten Rolle. Danach leitet der Login
             passend zur Rolle weiter.
           </p>
         </div>

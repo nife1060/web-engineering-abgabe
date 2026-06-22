@@ -463,10 +463,10 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     if (course.modules.length === 0) errors.push("Mindestens ein Modul ist erforderlich.");
     if (lessonCount === 0) errors.push("Mindestens eine Lektion ist erforderlich.");
     if (course.pricingModel === "PAID" && (!Number.isFinite(course.price) || course.price <= 0)) {
-      errors.push("Paid Courses brauchen einen gueltigen Preis.");
+      errors.push("Paid Courses brauchen einen gültigen Preis.");
     }
     if (course.pricingModel === "SUBSCRIPTION" && (!Number.isFinite(course.subscriptionPrice) || course.subscriptionPrice <= 0)) {
-      errors.push("Subscription Courses brauchen einen gueltigen monatlichen Preis.");
+      errors.push("Subscription Courses brauchen einen gültigen monatlichen Preis.");
     }
     return errors;
   }
