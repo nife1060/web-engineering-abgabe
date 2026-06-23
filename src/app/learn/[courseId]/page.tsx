@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { markLessonCompleted, markLessonStillWorking } from "@/app/actions/course-interactions";
 import QuizPlayer from "@/components/QuizPlayer";
 import { getSession } from "@/lib/auth";
+import { issueCertificateIfEligible } from "@/lib/certificates";
 import { prisma } from "@/lib/prisma";
 import { canAccessCourse } from "@/lib/enrollments";
 
@@ -122,6 +123,10 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
   const courseStatusLabel =
     progressPercent >= 100 ? "Course completed" : completedCount > 0 ? "In progress" : "Not started";
 
+  // Once every lesson is done the learner has earned a certificate.
+  const certificate =
+    progressPercent >= 100 ? await issueCertificateIfEligible(session.userId, course.id) : null;
+
   return (
     <div className="bg-gray-50 min-h-[calc(100vh-64px)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -162,6 +167,26 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
             </div>
           </div>
         </div>
+
+        {certificate ? (
+          <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-purple-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">🏆</span>
+              <div>
+                <p className="text-sm font-extrabold text-gray-900">Congratulations — course completed!</p>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  You&apos;ve earned a certificate of completion. Download or print it as a PDF.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/certificates/${certificate.id}`}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-purple-700"
+            >
+              View Certificate
+            </Link>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
           <aside className="bg-white border border-gray-200 rounded-2xl overflow-hidden h-fit">

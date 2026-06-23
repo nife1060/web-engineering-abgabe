@@ -1,10 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import CertificationsSection, {
+  type CertificateInProgressCourse,
+  type EarnedCertificate,
+} from "@/components/CertificationsSection";
 import MyLearningLocalContent from "@/components/MyLearningLocalContent";
 import { getSession } from "@/lib/auth";
+import { syncCertificatesForUser } from "@/lib/certificates";
 import type { Course } from "@/lib/data";
 import { mockCourses } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
+
+const FALLBACK_THUMBNAIL =
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=225&fit=crop";
 
 export const dynamic = "force-dynamic";
 
@@ -147,6 +155,32 @@ export default async function MyLearningPage({
     .filter((course) => !enrolledIds.has(course.id))
     .slice(0, 6);
 
+  // Backfill/issue certificates for fully-completed courses and load the list.
+  const certificates = await syncCertificatesForUser(session.userId);
+  const certificateIdByCourseId: Record<string, string> = Object.fromEntries(
+    certificates.map((certificate) => [certificate.courseId, certificate.id]),
+  );
+
+  const completedLessonIdSet = new Set(completedLessonIds);
+  const earnedCertificates: EarnedCertificate[] = certificates.map((certificate) => ({
+    id: certificate.id,
+    serial: certificate.serial,
+    courseTitle: certificate.course.title,
+    instructor: certificate.course.creator.name,
+    issuedAt: certificate.issuedAt.toISOString(),
+    thumbnail: certificate.course.thumbnailUrl || FALLBACK_THUMBNAIL,
+  }));
+  const certificateInProgressCourses: CertificateInProgressCourse[] = enrolledCourses
+    .map((course) => {
+      const lessons = course.modules.flatMap((module) => module.lessons);
+      const totalLessons = lessons.length;
+      const completedLessons = lessons.filter((lesson) => completedLessonIdSet.has(lesson.id)).length;
+      const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+      return { id: course.id, title: course.title, thumbnail: course.thumbnail, progress, completedLessons, totalLessons };
+    })
+    .filter((course) => course.completedLessons > 0 && course.progress < 100);
+
   return (
     <div className="bg-gray-50 min-h-[calc(100vh-64px)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -183,25 +217,26 @@ export default async function MyLearningPage({
           ))}
         </div>
 
-        <MyLearningLocalContent
-          activeTab={activeTab}
-          activeCourseStatus={activeCourseStatus}
-          completedLessonIds={completedLessonIds}
-          completedLessonActivity={completedProgress.map((progress) => ({
-            lessonId: progress.lessonId,
-            completedAt: progress.completedAt?.toISOString() ?? null,
-          }))}
-          enrolledCourses={enrolledCourses}
-          enrolledAtByCourseId={Object.fromEntries(enrolledLatestAt)}
-          recommendedCourses={recommendedCourses}
-        />
-
         {activeTab === "certifications" ? (
-          <section className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
-            <h2 className="font-bold text-gray-900 text-lg mb-2">No certificates yet.</h2>
-            <p className="text-gray-500 text-sm">Complete a course to earn your first certificate.</p>
-          </section>
-        ) : null}
+          <CertificationsSection
+            certificates={earnedCertificates}
+            inProgressCourses={certificateInProgressCourses}
+          />
+        ) : (
+          <MyLearningLocalContent
+            activeTab={activeTab}
+            activeCourseStatus={activeCourseStatus}
+            completedLessonIds={completedLessonIds}
+            completedLessonActivity={completedProgress.map((progress) => ({
+              lessonId: progress.lessonId,
+              completedAt: progress.completedAt?.toISOString() ?? null,
+            }))}
+            enrolledCourses={enrolledCourses}
+            enrolledAtByCourseId={Object.fromEntries(enrolledLatestAt)}
+            recommendedCourses={recommendedCourses}
+            certificateIdByCourseId={certificateIdByCourseId}
+          />
+        )}
       </div>
     </div>
   );

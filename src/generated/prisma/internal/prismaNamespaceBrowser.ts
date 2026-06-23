@@ -63,6 +63,7 @@ export const ModelName = {
   Wishlist: 'Wishlist',
   Enrollment: 'Enrollment',
   Order: 'Order',
+  Certificate: 'Certificate',
   Subscription: 'Subscription'
 } as const
 
@@ -235,6 +236,17 @@ export const OrderScalarFieldEnum = {
 } as const
 
 export type OrderScalarFieldEnum = (typeof OrderScalarFieldEnum)[keyof typeof OrderScalarFieldEnum]
+
+
+export const CertificateScalarFieldEnum = {
+  id: 'id',
+  serial: 'serial',
+  userId: 'userId',
+  courseId: 'courseId',
+  issuedAt: 'issuedAt'
+} as const
+
+export type CertificateScalarFieldEnum = (typeof CertificateScalarFieldEnum)[keyof typeof CertificateScalarFieldEnum]
 
 
 export const SubscriptionScalarFieldEnum = {

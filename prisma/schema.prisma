@@ -73,6 +73,7 @@ model User {
   enrollments      Enrollment[]
   orders           Order[]
   subscriptions    Subscription[]
+  certificates     Certificate[]
 }
 
 model Category {
@@ -107,6 +108,7 @@ model Course {
   enrollments   Enrollment[]
   orders        Order[]
   subscriptions Subscription[]
+  certificates  Certificate[]
 
   @@index([creatorId])
   @@index([status])
@@ -249,6 +251,21 @@ model Order {
 
   @@index([userId])
   @@index([stripeSessionId])
+}
+
+model Certificate {
+  id        String   @id @default(cuid())
+  serial    String   @unique
+  userId    String
+  courseId  String
+  issuedAt  DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
 }
 
 model Subscription {

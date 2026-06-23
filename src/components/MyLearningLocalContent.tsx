@@ -20,6 +20,7 @@ type MyLearningLocalContentProps = {
   enrolledCourses: Course[];
   enrolledAtByCourseId: Record<string, string>;
   recommendedCourses: Course[];
+  certificateIdByCourseId?: Record<string, string>;
 };
 
 const myCourseTabs = [
@@ -68,10 +69,11 @@ function getLessonPlayerHref(course: Course) {
   return `/learn/${course.id}`;
 }
 
-function ProgressCourseCard({ course }: { course: Course }) {
+function ProgressCourseCard({ course, certificateId }: { course: Course; certificateId?: string }) {
   const stats = getCourseLearningStats(course);
   const progress = course.progress ?? stats.progress;
   const lessonHref = getLessonPlayerHref(course);
+  const isCompleted = progress >= 100;
 
   return (
     <div className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition">
@@ -121,8 +123,16 @@ function ProgressCourseCard({ course }: { course: Course }) {
           href={lessonHref}
           className="mt-4 block w-full rounded-lg border border-purple-600 py-2 text-center text-xs font-bold text-purple-600 hover:bg-purple-50 transition"
         >
-          Continue Learning
+          {isCompleted ? "Review Course" : "Continue Learning"}
         </Link>
+        {isCompleted && certificateId ? (
+          <Link
+            href={`/certificates/${certificateId}`}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-400 py-2 text-center text-xs font-bold text-amber-950 hover:bg-amber-300 transition"
+          >
+            🏆 View Certificate
+          </Link>
+        ) : null}
       </div>
     </div>
   );
@@ -178,6 +188,7 @@ export default function MyLearningLocalContent({
   enrolledCourses,
   enrolledAtByCourseId,
   recommendedCourses,
+  certificateIdByCourseId = {},
 }: MyLearningLocalContentProps) {
   const [storedWishlist, setStoredWishlist] = useState<StoredWishlistCourse[]>([]);
 
@@ -317,7 +328,11 @@ export default function MyLearningLocalContent({
         {myCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {myCourses.map((course) => (
-              <ProgressCourseCard key={course.id} course={course} />
+              <ProgressCourseCard
+                key={course.id}
+                course={course}
+                certificateId={certificateIdByCourseId[course.id]}
+              />
             ))}
           </div>
         ) : (
@@ -398,7 +413,11 @@ export default function MyLearningLocalContent({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {hydratedEnrolledCourses.map((course) => (
-              <ProgressCourseCard key={course.id} course={course} />
+              <ProgressCourseCard
+                key={course.id}
+                course={course}
+                certificateId={certificateIdByCourseId[course.id]}
+              />
             ))}
           </div>
         </section>

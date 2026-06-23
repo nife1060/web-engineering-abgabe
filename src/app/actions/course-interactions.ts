@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { issueCertificateIfEligible } from "@/lib/certificates";
 import { prisma } from "@/lib/prisma";
 
 export async function markLessonCompleted(courseId: string, lessonId: string) {
@@ -31,7 +32,11 @@ export async function markLessonCompleted(courseId: string, lessonId: string) {
     },
   });
 
+  // Completing the final lesson of a course earns a certificate.
+  await issueCertificateIfEligible(session.userId, courseId);
+
   revalidatePath(`/learn/${courseId}`);
+  revalidatePath("/mylearning");
 }
 
 export async function markLessonStillWorking(courseId: string, lessonId: string) {

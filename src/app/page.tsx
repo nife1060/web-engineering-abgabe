@@ -2,7 +2,13 @@ import Link from "next/link";
 import Image from "next/image";
 import CourseCard from "@/components/CourseCard";
 import { getSession } from "@/lib/auth";
-import { mockCourses } from "@/lib/data";
+import type { Course } from "@/lib/data";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+const FALLBACK_THUMBNAIL =
+  "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=225&fit=crop";
 
 const features = [
   { icon: "🎓", title: "Expert-Led Courses", description: "Learn from industry professionals with real-world experience in their fields." },
@@ -33,7 +39,47 @@ export default async function Home() {
         { href: "/register", label: "Start free trial", variant: "primary" },
         { href: "/courses", label: "Browse courses", variant: "secondary" },
       ];
-  const featuredCourses = mockCourses.slice(0, 3);
+  const publishedCourses = await prisma.course.findMany({
+    where: { status: "PUBLISHED" },
+    orderBy: { updatedAt: "desc" },
+    take: 6,
+    include: {
+      creator: { select: { name: true } },
+      modules: {
+        orderBy: { order: "asc" },
+        include: { lessons: { orderBy: { order: "asc" } } },
+      },
+    },
+  });
+
+  const courses: Course[] = publishedCourses.map((course) => ({
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    instructor: course.creator.name,
+    price: course.price,
+    subscriptionPrice: course.subscriptionPrice,
+    pricingModel: course.pricingModel,
+    rating: 0,
+    studentsCount: 0,
+    category: course.categoryName,
+    level: course.level as "Beginner" | "Intermediate" | "Advanced",
+    thumbnail: course.thumbnailUrl || FALLBACK_THUMBNAIL,
+    enrolled: false,
+    modules: course.modules.map((module) => ({
+      id: module.id,
+      title: module.title,
+      lessons: module.lessons.map((lesson) => ({
+        id: lesson.id,
+        title: lesson.title,
+        duration: lesson.type === "VIDEO" ? "Video" : lesson.type === "QUIZ" ? "Quiz" : "Text",
+        type: lesson.type === "VIDEO" ? ("video" as const) : ("text" as const),
+        completed: false,
+      })),
+    })),
+  }));
+  const featuredCourses = courses.slice(0, 3);
+  const heroCourses = courses.slice(0, 4);
 
   return (
     <div className="flex flex-col">
@@ -74,13 +120,17 @@ export default async function Home() {
             <p className="mt-5 text-sm text-purple-300">No credit card required · Cancel anytime</p>
           </div>
           <div className="flex-1 hidden lg:grid grid-cols-2 gap-4 max-w-sm">
-            {mockCourses.slice(0, 4).map((c) => (
+            {heroCourses.map((c) => (
               <div key={c.id} className="bg-white/10 backdrop-blur rounded-xl p-4 border border-white/20">
                 <div className="w-full h-24 bg-white/10 rounded-lg mb-3 overflow-hidden">
                   <img src={c.thumbnail} alt={c.title} className="w-full h-full object-cover opacity-80" />
                 </div>
                 <p className="text-xs font-semibold text-purple-200 line-clamp-2">{c.title}</p>
-                <p className="text-xs text-yellow-400 mt-1">★ {c.rating}</p>
+                {c.rating > 0 ? (
+                  <p className="text-xs text-yellow-400 mt-1">★ {c.rating}</p>
+                ) : (
+                  <p className="text-xs text-purple-300 mt-1">{c.level}</p>
+                )}
               </div>
             ))}
           </div>
@@ -124,11 +174,17 @@ export default async function Home() {
             </div>
             <Link href="/courses" className="text-purple-600 font-semibold hover:text-purple-800 text-sm">View all →</Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredCourses.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
+          {featuredCourses.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredCourses.map((course) => (
+                <CourseCard key={course.id} course={course} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
+              <p className="text-gray-500 text-sm">No courses available yet. Check back soon.</p>
+            </div>
+          )}
         </div>
       </section>
 

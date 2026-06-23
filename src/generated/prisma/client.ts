@@ -102,6 +102,11 @@ export type Enrollment = Prisma.EnrollmentModel
  */
 export type Order = Prisma.OrderModel
 /**
+ * Model Certificate
+ * 
+ */
+export type Certificate = Prisma.CertificateModel
+/**
  * Model Subscription
  * 
  */
