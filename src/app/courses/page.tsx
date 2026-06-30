@@ -1,6 +1,12 @@
+/**
+ * Der Kurskatalog (/courses). Filtern, Sortieren und Suchen passiert
+ * komplett server-seitig anhand der URL-Parameter — `CoursesFilterForm`
+ * zeigt nur die Steuerelemente an und schickt ein GET an diese Seite zurück.
+ */
+
 import CourseCard from "@/components/CourseCard";
 import CoursesFilterForm from "@/components/CoursesFilterForm";
-import { Course, mockCourses } from "@/lib/data";
+import { Course } from "@/lib/data";
 import { ensureDefaultCategories } from "@/lib/categories";
 import { prisma } from "@/lib/prisma";
 
@@ -33,35 +39,17 @@ function firstValue(value: string | string[] | undefined, fallback = "") {
   return value ?? fallback;
 }
 
-type CourseWithFreeFields = Omit<Course, "price"> & {
-  price?: number | string | null;
-  free?: boolean;
-  isFree?: boolean;
-  pricingType?: string | null;
-  type?: string | null;
-};
-
-function coursePriceValue(course: CourseWithFreeFields) {
+function coursePriceValue(course: Course) {
   const price = Number(course.price ?? 0);
   return Number.isFinite(price) ? price : 0;
 }
 
-function isFreeCourse(course: CourseWithFreeFields) {
-  const price = course.price;
-  const freeMarkers = [course.pricingModel, course.pricingType, course.type];
-
-  return (
-    freeMarkers.some((marker) => typeof marker === "string" && marker.toLowerCase() === "free") ||
-    price === null ||
-    price === undefined ||
-    price === 0 ||
-    price === "0" ||
-    course.free === true ||
-    course.isFree === true
-  );
+function isFreeCourse(course: Course) {
+  return course.pricingModel === "FREE" || coursePriceValue(course) === 0;
 }
 
-function matchesPrice(course: CourseWithFreeFields, selectedPrice: string) {
+/** Prüft, ob ein Kurs in den gewählten Preisbereich passt. */
+function matchesPrice(course: Course, selectedPrice: string) {
   if (selectedPrice === "any") {
     return true;
   }
@@ -87,6 +75,7 @@ function matchesPrice(course: CourseWithFreeFields, selectedPrice: string) {
   return true;
 }
 
+/** Sortiert die Kursliste passend zum gewählten Dropdown-Wert. Standardmäßig nach Anzahl Studierenden ("popular"). */
 function sortCourses(courses: Course[], selectedSort: string) {
   const sortedCourses = [...courses];
 
@@ -179,11 +168,14 @@ export default async function CoursesPage({
       })),
     })),
   }));
-  const courses = [...dbCourses, ...mockCourses];
+  const courses = dbCourses;
   const categoryLabels = ["All", ...categories.map((category) => category.name)];
   const minRating = selectedRating === "Any" ? 0 : Number.parseFloat(selectedRating);
   const normalizedQuery = query.toLowerCase();
   const queryTerms = normalizedQuery.split(/\s+/).filter(Boolean);
+  // "free" im Suchfeld behandeln wir als Preisfilter, nicht als normalen
+  // Suchbegriff. Bei "free react course" wird also nach kostenlosen Kursen
+  // gefiltert und nur noch nach "react course" im Text gesucht.
   const searchesForFree = queryTerms.includes("free");
   const textQuery = queryTerms.filter((term) => term !== "free").join(" ");
   const filteredCourses = sortCourses(
@@ -212,6 +204,9 @@ export default async function CoursesPage({
         <p className="text-gray-500">Discover your next skill from our library of expert-led courses</p>
       </div>
 
+      {/* Der key sorgt dafür, dass das Formular neu gemountet wird, wenn
+          sich die URL-Parameter ändern (z.B. Browser-Zurück-Button) — sonst
+          würden die Inputs auf einem alten Stand hängen bleiben. */}
       <CoursesFilterForm
         key={[query, selectedCategory, selectedLevel, selectedPrice, selectedRating, selectedSort].join("|")}
         categoryLabels={categoryLabels}

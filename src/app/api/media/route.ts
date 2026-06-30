@@ -1,3 +1,9 @@
+/**
+ * Gibt die Medienbibliothek des eingeloggten Creators zurück. Wird vom
+ * "Aus meiner Bibliothek anhängen"-Picker im Course Builder genutzt
+ * (`@/components/CourseBuilder`).
+ */
+
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";

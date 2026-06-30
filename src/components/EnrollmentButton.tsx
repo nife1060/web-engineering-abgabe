@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Der große Button auf der Kursdetailseite: "Enroll"/"Subscribe" wenn man
+ * den Kurs noch nicht hat, sonst ein "Continue learning"-Link (gilt auch
+ * für den Creator oder Admins, siehe `isCreatorOrAdmin` in courses/[id]/page.tsx).
+ */
+
 import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { purchaseCourse } from "@/app/actions/checkout";
@@ -13,6 +19,7 @@ type EnrollmentButtonProps = {
   initiallyEnrolled?: boolean;
 };
 
+/** Der Submit-Button: deaktiviert sich selbst und zeigt "Processing…", solange die Form Action noch läuft. */
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
 

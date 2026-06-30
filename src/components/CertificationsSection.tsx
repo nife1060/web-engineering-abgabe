@@ -1,3 +1,8 @@
+/**
+ * "Certifications"-Tab auf der My-Learning-Seite: zeigt die bereits
+ * verdienten Zertifikate und Kurse, die kurz vor dem Abschluss stehen.
+ */
+
 import Link from "next/link";
 
 export type EarnedCertificate = {
@@ -26,6 +31,7 @@ function formatIssuedDate(iso: string) {
   }).format(new Date(iso));
 }
 
+/** Eine Karte für ein verdientes Zertifikat, klickt man drauf kommt man zur Druckansicht. */
 function CertificateCard({ certificate }: { certificate: EarnedCertificate }) {
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:shadow-md">
@@ -66,6 +72,7 @@ function CertificateCard({ certificate }: { certificate: EarnedCertificate }) {
   );
 }
 
+/** Karte für einen Kurs, der noch nicht ganz fertig ist, motiviert den Nutzer weiterzumachen. */
 function InProgressCard({ course }: { course: CertificateInProgressCourse }) {
   return (
     <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5">

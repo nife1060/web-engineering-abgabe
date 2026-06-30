@@ -1,5 +1,7 @@
 "use client";
 
+/** Login- und Registrierungsformular, die Logik dazu steckt in den Server Actions in `@/app/actions/auth`. */
+
 import Link from "next/link";
 import { FormEvent, useActionState, useTransition } from "react";
 import { loginUser, registerUser, type AuthFormState } from "@/app/actions/auth";
@@ -9,10 +11,14 @@ const initialState: AuthFormState = {};
 const inputClass =
   "w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent";
 
+/** Registrierungsformular mit Name, E-Mail, Passwort und Rollenauswahl (USER oder CREATOR, ADMIN geht hier nicht). */
 export function RegisterForm() {
   const [state, action, pending] = useActionState(registerUser, initialState);
   const [isSubmitting, startSubmit] = useTransition();
 
+  // Wir nutzen hier onSubmit + startTransition statt `action` direkt ans
+  // <form> zu hängen, damit wir für den disabled-Status des Buttons sowohl
+  // `pending` von useActionState als auch `isSubmitting` kombinieren können.
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -80,6 +86,7 @@ export function RegisterForm() {
   );
 }
 
+/** Login-Formular. Bei Erfolg leitet die Server Action passend zur Rolle weiter (siehe `redirectForRole`). */
 export function LoginForm() {
   const [state, action, pending] = useActionState(loginUser, initialState);
   const [isSubmitting, startSubmit] = useTransition();

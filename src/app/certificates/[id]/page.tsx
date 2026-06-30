@@ -1,3 +1,10 @@
+/**
+ * Die Zertifikatsseite zum Drucken, erreichbar über "My Learning" >
+ * Certifications oder direkt nach Kursabschluss. Wichtig: Das Zertifikat
+ * wird hier nicht vergeben, sondern in `@/lib/certificates.ts`, sobald der
+ * Kurs fertig ist — diese Seite zeigt nur ein schon vorhandenes Zertifikat an.
+ */
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import CertificatePrintButton from "@/components/CertificatePrintButton";
@@ -10,6 +17,10 @@ type Props = {
 
 export const dynamic = "force-dynamic";
 
+// Diese Styles gelten nur beim Drucken (Navigation ausblenden, A4
+// Querformat usw.) und stehen hier als rohes CSS statt als Tailwind-Klassen,
+// weil wir auch body/main von außen anpassen müssen — das geht über
+// className nicht.
 const printStyles = `
 @media print {
   body { background: #ffffff !important; }
@@ -56,7 +67,7 @@ export default async function CertificatePage({ params }: Props) {
     redirect("/mylearning?tab=certifications");
   }
 
-  // Only the certificate holder (or an admin) may view it.
+  // Nur der Zertifikatsinhaber (oder ein Admin) darf es ansehen.
   if (certificate.userId !== session.userId && session.role !== "ADMIN") {
     redirect("/mylearning?tab=certifications");
   }
@@ -80,7 +91,7 @@ export default async function CertificatePage({ params }: Props) {
         </div>
 
         <div className="certificate-sheet relative mx-auto w-full overflow-hidden rounded-2xl bg-white shadow-xl">
-          {/* Decorative frame */}
+          {/* Dekorativer Rahmen */}
           <div className="pointer-events-none absolute inset-3 rounded-xl border-2 border-purple-200" />
           <div className="pointer-events-none absolute inset-5 rounded-lg border border-amber-300/70" />
           <span className="pointer-events-none absolute left-0 top-0 h-28 w-28 rounded-br-[100%] bg-purple-600/10" />

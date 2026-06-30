@@ -1,3 +1,5 @@
+/** /login — drumherum ist hier nur Layout, die Formularlogik steckt in `@/components/AuthForms`. */
+
 import Link from "next/link";
 import Image from "next/image";
 import { LoginForm } from "@/components/AuthForms";

@@ -1,7 +1,16 @@
+/**
+ * Die Landingpage ("/"). Die sieht nur, wer nicht eingeloggt ist — ist
+ * schon eine Session da, wird man sofort zu seiner Startseite je nach
+ * Rolle weitergeleitet (siehe `getRoleHomePath`), bevor hier überhaupt
+ * was gerendert wird. Deshalb muss der ganze Rest unten auch nicht extra
+ * auf den Login-Status prüfen.
+ */
+
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import CourseCard from "@/components/CourseCard";
-import { getSession } from "@/lib/auth";
+import { getRoleHomePath, getSession } from "@/lib/auth";
 import type { Course } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 
@@ -27,18 +36,14 @@ const testimonials = [
 
 export default async function Home() {
   const session = await getSession();
-  const heroButtons = session
-    ? [
-        { href: "/courses", label: "Browse Courses", variant: "primary" },
-        ...(session.role === "CREATOR"
-          ? [{ href: "/creator/courses/new", label: "Create Course", variant: "secondary" }]
-          : []),
-        ...(session.role === "ADMIN" ? [{ href: "/admin", label: "Admin", variant: "secondary" }] : []),
-      ]
-    : [
-        { href: "/register", label: "Start free trial", variant: "primary" },
-        { href: "/courses", label: "Browse courses", variant: "secondary" },
-      ];
+  if (session) {
+    redirect(getRoleHomePath(session.role));
+  }
+
+  const heroButtons = [
+    { href: "/register", label: "Start free trial", variant: "primary" },
+    { href: "/courses", label: "Browse courses", variant: "secondary" },
+  ];
   const publishedCourses = await prisma.course.findMany({
     where: { status: "PUBLISHED" },
     orderBy: { updatedAt: "desc" },
@@ -83,7 +88,7 @@ export default async function Home() {
 
   return (
     <div className="flex flex-col">
-      {/* Hero */}
+      {/* Hero-Bereich */}
       <section className="relative bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 left-10 w-72 h-72 bg-purple-400 rounded-full blur-3xl" />
@@ -145,7 +150,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Funktionen */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
@@ -164,7 +169,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Featured Courses */}
+      {/* Empfohlene Kurse */}
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between mb-10">
@@ -188,7 +193,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Erfahrungsberichte */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-extrabold text-gray-900 text-center mb-12">What our users say</h2>
@@ -209,14 +214,12 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* CTA Banner */}
+      {/* CTA-Banner */}
       <section className="bg-purple-700 py-16">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-extrabold text-white mb-4">Ready to start your journey?</h2>
           <p className="text-purple-200 mb-8 text-lg">
-            {session
-              ? "Continue learning with over 12,000 learners already on Learnify."
-              : "Join over 12,000 learners already on Learnify. Sign up free today."}
+            Join over 12,000 learners already on Learnify. Sign up free today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/courses" className="bg-white text-purple-700 font-bold px-8 py-4 rounded-xl hover:bg-purple-50 transition text-lg">Start now</Link>
@@ -224,7 +227,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Fußzeile */}
       <footer className="bg-gray-900 text-gray-400 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between gap-8">
@@ -246,23 +249,8 @@ export default async function Home() {
               <div>
                 <h4 className="font-semibold text-white mb-3">Account</h4>
                 <ul className="space-y-2">
-                  {session ? (
-                    <>
-                      <li><Link href="/mylearning" className="hover:text-white transition">My Learning</Link></li>
-                      {(session.role === "CREATOR" || session.role === "ADMIN") && (
-                        <>
-                          <li><Link href="/dashboard" className="hover:text-white transition">Dashboard</Link></li>
-                          <li><Link href="/dashboard/courses" className="hover:text-white transition">My Courses</Link></li>
-                        </>
-                      )}
-                      {session.role === "ADMIN" && <li><Link href="/admin" className="hover:text-white transition">Admin</Link></li>}
-                    </>
-                  ) : (
-                    <>
-                      <li><Link href="/login" className="hover:text-white transition">Log in</Link></li>
-                      <li><Link href="/register" className="hover:text-white transition">Sign up</Link></li>
-                    </>
-                  )}
+                  <li><Link href="/login" className="hover:text-white transition">Log in</Link></li>
+                  <li><Link href="/register" className="hover:text-white transition">Sign up</Link></li>
                 </ul>
               </div>
             </div>

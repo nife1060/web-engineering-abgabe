@@ -1,8 +1,17 @@
 "use client";
 
+/**
+ * Der Inhalt von "My Learning" (/mylearning). Die Page selbst ist eine
+ * Server-Component und lädt Daten zu Einschreibungen, Fortschritt und
+ * Wunschliste. Diese Component macht den client-seitigen Teil: holt die
+ * Wunschliste aus dem Browser dazu (siehe `@/lib/enrollment-storage`) und
+ * wechselt zwischen den Tabs Dashboard / My Courses / Wishlist, je nachdem
+ * was in `activeTab` (vom `?tab=`-Parameter der URL) steht.
+ */
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { formatCoursePrice } from "@/lib/course-format";
+import { calculateProgressPercent, formatCoursePrice } from "@/lib/course-format";
 import type { Course } from "@/lib/data";
 import {
   readStoredWishlistCourses,
@@ -29,11 +38,12 @@ const myCourseTabs = [
   { label: "Completed", value: "completed", href: "/mylearning?tab=my-courses&courseStatus=completed" },
 ];
 
+/** Berechnet Fortschritt in Prozent, wie viele Lektionen noch fehlen, und welches Status-Badge angezeigt werden soll. */
 function getCourseLearningStats(course: Course) {
   const lessons = course.modules.flatMap((module) => module.lessons);
   const completedLessons = lessons.filter((lesson) => lesson.completed).length;
   const totalLessons = lessons.length;
-  const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const progress = calculateProgressPercent(completedLessons, totalLessons);
   const remainingLessons = Math.max(totalLessons - completedLessons, 0);
   const status =
     progress >= 100
@@ -51,6 +61,7 @@ function getCourseLearningStats(course: Course) {
   };
 }
 
+/** Macht aus einem Zeitstempel einen Text wie "vor 5 Minuten" für den Activity-Feed. */
 function formatActivityTime(date: Date) {
   const minutesAgo = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
 
@@ -69,6 +80,7 @@ function getLessonPlayerHref(course: Course) {
   return `/learn/${course.id}`;
 }
 
+/** Karte für einen Kurs, in dem man eingeschrieben ist: zeigt Fortschritt und nach Abschluss einen Link zum Zertifikat. */
 function ProgressCourseCard({ course, certificateId }: { course: Course; certificateId?: string }) {
   const stats = getCourseLearningStats(course);
   const progress = course.progress ?? stats.progress;
@@ -138,6 +150,7 @@ function ProgressCourseCard({ course, certificateId }: { course: Course; certifi
   );
 }
 
+/** Karte für einen Kurs, den man noch nicht hat — wird bei den Empfehlungen und in der Wunschliste verwendet. */
 function RecommendedCourseCard({ course }: { course: Course }) {
   const priceLabel = formatCoursePrice(course.pricingModel ?? "PAID", course.price, course.subscriptionPrice ?? 0);
   const hasRating = Number.isFinite(course.rating) && course.rating > 0;
@@ -180,6 +193,12 @@ function RecommendedCourseCard({ course }: { course: Course }) {
   );
 }
 
+/**
+ * Zeigt je nach `activeTab` eine von drei Ansichten: Dashboard-Übersicht,
+ * "My Courses"-Liste oder Wunschliste. Haben wir bewusst in einer
+ * Component gelassen statt drei eigene daraus zu machen, weil alle drei
+ * dieselben berechneten Daten zu Einschreibungen und Fortschritt brauchen.
+ */
 export default function MyLearningLocalContent({
   activeTab,
   activeCourseStatus,
@@ -192,6 +211,11 @@ export default function MyLearningLocalContent({
 }: MyLearningLocalContentProps) {
   const [storedWishlist, setStoredWishlist] = useState<StoredWishlistCourse[]>([]);
 
+  // Die Wunschliste steckt im localStorage und nicht in den Props vom
+  // Server, deshalb müssen wir sie hier im Client laden und bei jeder
+  // Änderung neu einlesen. "storage" feuert nur bei anderen Tabs, deshalb
+  // brauchen wir zusätzlich "learnhub-wishlist-changed" für Änderungen im
+  // eigenen Tab.
   useEffect(() => {
     const refreshWishlist = () => setStoredWishlist(readStoredWishlistCourses());
 
@@ -205,13 +229,16 @@ export default function MyLearningLocalContent({
     };
   }, []);
 
+  // Der Server schickt uns die IDs der abgeschlossenen Lektionen separat
+  // (eine Abfrage für alles statt eine pro Kurs), darum müssen wir sie hier
+  // erst noch den passenden Lektionen zuordnen, bevor wir rendern.
   const hydratedEnrolledCourses = useMemo(() => {
     const completedLessonIdSet = new Set(completedLessonIds);
 
     return enrolledCourses.map((course) => {
       const lessons = course.modules.flatMap((module) => module.lessons);
       const completedCount = lessons.filter((lesson) => completedLessonIdSet.has(lesson.id)).length;
-      const progress = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
+      const progress = calculateProgressPercent(completedCount, lessons.length);
 
       return {
         ...course,

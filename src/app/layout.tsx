@@ -1,3 +1,8 @@
+/**
+ * Das Root-Layout, das laut Next.js App Router um jede Seite gelegt wird.
+ * Hier kommen die Navbar und die Laufzeit-Übersetzung rein.
+ */
+
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";

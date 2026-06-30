@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Course } from "@/lib/data";
-import { formatCoursePrice } from "@/lib/course-format";
+import { calculateProgressPercent, formatCoursePrice } from "@/lib/course-format";
 
 interface Props {
   course: Course;
@@ -9,12 +9,20 @@ interface Props {
 
 const cardClass = "group block bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow duration-200";
 
+/**
+ * Karte für einen Kurs, wird im Katalog, im Dashboard und auf "My Learning" verwendet.
+ *
+ * Normalerweise ist die ganze Karte ein `<Link>` zur Kursdetailseite. Mit
+ * `showProgress` ist es stattdessen ein `<div>` mit einem eigenen "Continue
+ * Learning"-Link drin. Grund: Ein `<a>` in einem anderen `<a>` ist nicht
+ * erlaubt im HTML, deshalb müssen wir hier zwei unterschiedliche Varianten bauen.
+ */
 export default function CourseCard({ course, showProgress }: Props) {
   const priceLabel = formatCoursePrice(course.pricingModel ?? "PAID", course.price, course.subscriptionPrice ?? 0);
   const lessons = course.modules.flatMap((module) => module.lessons);
   const completedLessons = lessons.filter((lesson) => lesson.completed).length;
   const totalLessons = lessons.length;
-  const progress = course.progress ?? (totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0);
+  const progress = course.progress ?? calculateProgressPercent(completedLessons, totalLessons);
   const statusLabel = progress >= 100 ? "Completed" : progress > 0 ? "In Progress" : "Not Started";
   const hasRating = Number.isFinite(course.rating) && course.rating > 0;
 

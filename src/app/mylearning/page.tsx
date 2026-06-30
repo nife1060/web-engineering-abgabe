@@ -1,3 +1,11 @@
+/**
+ * "My Learning" (/mylearning) — landet man als normaler User direkt nach
+ * dem Login (siehe `getRoleHomePath`). Lädt vorab alles, was die vier
+ * Tabs brauchen. Bei "Certifications" wird direkt `CertificationsSection`
+ * gerendert, sonst übernimmt die client-seitige `MyLearningLocalContent`
+ * (die auch noch die Wunschliste aus dem Browser dazuholt).
+ */
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import CertificationsSection, {
@@ -7,8 +15,8 @@ import CertificationsSection, {
 import MyLearningLocalContent from "@/components/MyLearningLocalContent";
 import { getSession } from "@/lib/auth";
 import { syncCertificatesForUser } from "@/lib/certificates";
+import { calculateProgressPercent } from "@/lib/course-format";
 import type { Course } from "@/lib/data";
-import { mockCourses } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 
 const FALLBACK_THUMBNAIL =
@@ -41,6 +49,7 @@ function firstValue(value: string | string[] | undefined, fallback = "") {
   return value ?? fallback;
 }
 
+/** Lädt die Daten für alle Tabs und zeigt dann die Ansicht, die gerade im `?tab=`-Parameter steht. */
 export default async function MyLearningPage({
   searchParams,
 }: {
@@ -52,6 +61,8 @@ export default async function MyLearningPage({
     redirect("/login");
   }
 
+  // Query-Parameter kann man nicht einfach blind übernehmen — wenn der
+  // Tab-Wert nicht zu einem der bekannten Tabs passt, nehmen wir den Standard.
   const params = await searchParams;
   const requestedTab = firstValue(params.tab, "dashboard");
   const activeTab = tabs.some((tab) => tab.value === requestedTab) ? requestedTab : "dashboard";
@@ -112,6 +123,10 @@ export default async function MyLearningPage({
   ]);
   const completedLessonIds = completedProgress.map((progress) => progress.lessonId);
 
+  // Wandelt einen Prisma-Kurs in die `Course`-Form für die UI um.
+  // rating/studentsCount sind hier immer 0, weil wir noch gar kein
+  // Bewertungssystem haben — die Felder existieren nur, weil manche
+  // Components (z.B. `CourseCard`) optional ein Bewertungs-Badge anzeigen.
   const mapDbCourseToCourse = (course: (typeof publishedCourses)[number]): Course => ({
     id: course.id,
     title: course.title,
@@ -142,7 +157,7 @@ export default async function MyLearningPage({
   });
 
   const dbCourses = publishedCourses.map(mapDbCourseToCourse);
-  const availableCourses = [...dbCourses, ...mockCourses];
+  const availableCourses = dbCourses;
   const enrolledCourses: Course[] = enrollments.map((enrollment) => ({
     ...mapDbCourseToCourse(enrollment.course),
     enrolled: true,
@@ -155,7 +170,7 @@ export default async function MyLearningPage({
     .filter((course) => !enrolledIds.has(course.id))
     .slice(0, 6);
 
-  // Backfill/issue certificates for fully-completed courses and load the list.
+  // Checkt nochmal alle Kurse auf Vollständigkeit und vergibt fehlende Zertifikate, dann holen wir die Liste.
   const certificates = await syncCertificatesForUser(session.userId);
   const certificateIdByCourseId: Record<string, string> = Object.fromEntries(
     certificates.map((certificate) => [certificate.courseId, certificate.id]),
@@ -175,7 +190,7 @@ export default async function MyLearningPage({
       const lessons = course.modules.flatMap((module) => module.lessons);
       const totalLessons = lessons.length;
       const completedLessons = lessons.filter((lesson) => completedLessonIdSet.has(lesson.id)).length;
-      const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      const progress = calculateProgressPercent(completedLessons, totalLessons);
 
       return { id: course.id, title: course.title, thumbnail: course.thumbnail, progress, completedLessons, totalLessons };
     })

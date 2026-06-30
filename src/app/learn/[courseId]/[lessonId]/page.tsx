@@ -1,3 +1,11 @@
+/**
+ * Diese Route gibt's nur noch wegen alter Links. Lektionen werden
+ * mittlerweile über `/learn/[courseId]?lesson=...` ausgewählt (siehe
+ * `@/app/learn/[courseId]/page.tsx`), nicht mehr über ein eigenes
+ * `[lessonId]`-Segment. Falls noch wer eine alte URL aufruft, landet er
+ * hier wenigstens beim Kurs statt bei einem 404.
+ */
+
 import { redirect } from "next/navigation";
 
 type Props = {

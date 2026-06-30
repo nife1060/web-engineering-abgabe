@@ -1,3 +1,9 @@
+/**
+ * "My Courses" (/dashboard/courses) — landet man als Creator direkt nach
+ * dem Login (siehe `getRoleHomePath`). Admins sehen hier alle Kurse der
+ * Plattform, nicht nur ihre eigenen.
+ */
+
 import Link from "next/link";
 import AccessDenied from "@/components/AccessDenied";
 import CreatorCoursesList from "@/components/CreatorCoursesList";

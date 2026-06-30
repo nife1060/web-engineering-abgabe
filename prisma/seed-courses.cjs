@@ -1,10 +1,10 @@
 /**
- * Seeds a handful of real, published courses (with instructors, modules and
- * lessons) directly into the SQLite database so the catalog and landing page
- * are populated with genuine database-backed courses.
+ * Füllt die SQLite-Datenbank mit ein paar Beispiel-Kursen (inkl.
+ * Instructors, Modulen und Lektionen), damit Katalog und Landingpage
+ * nicht komplett leer aussehen.
  *
- * Idempotent: re-running skips instructors/courses that already exist (matched
- * by email / title), so it is safe to run multiple times.
+ * Kann man mehrmals laufen lassen, ohne dass es Probleme gibt: Instructors
+ * und Kurse, die es schon gibt (über E-Mail/Titel erkannt), werden einfach übersprungen.
  *
  *   node prisma/seed-courses.cjs
  */
@@ -13,7 +13,7 @@ const Database = require("better-sqlite3");
 
 const db = new Database(path.join(__dirname, "..", "dev.db"));
 
-// Prisma stores DateTime as ISO-8601 with a +00:00 offset — match that exactly.
+// Prisma speichert Datum/Zeit als ISO-8601 mit +00:00 am Ende, das machen wir hier genauso nach.
 function now() {
   return new Date().toISOString().replace("Z", "+00:00");
 }
@@ -288,7 +288,7 @@ const seedAll = db.transaction(() => {
     console.log(`✓ created: ${course.title} (${course.instructor})`);
   }
 
-  // Normalize the pre-existing course's updatedAt to the ISO format Prisma uses.
+  // Falls ältere Kurse noch ein anderes Datumsformat haben, hier auf das Prisma-Format bringen.
   db.prepare(
     "UPDATE Course SET updatedAt = ? WHERE updatedAt NOT LIKE '%T%'",
   ).run(now());

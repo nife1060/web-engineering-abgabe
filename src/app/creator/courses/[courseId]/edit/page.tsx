@@ -1,3 +1,9 @@
+/**
+ * /creator/courses/[courseId]/edit — lädt den Kurs aus der DB, wandelt
+ * ihn in einen `CourseDraft` um und übergibt ihn an den `CourseBuilder`,
+ * damit der im Bearbeiten-Modus startet.
+ */
+
 import AccessDenied from "@/components/AccessDenied";
 import CourseBuilder, { type CourseDraft } from "@/components/CourseBuilder";
 import { requireRole } from "@/lib/auth";

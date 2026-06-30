@@ -1,3 +1,11 @@
+/**
+ * Logik für den Kaufprozess eines Kurses.
+ * Kostenlose Kurse und Kurse, die man eh schon hat, werden direkt erledigt,
+ * ohne dass Stripe überhaupt ins Spiel kommt. Bei echten Käufen wird hier
+ * nur die Stripe-Session erstellt — den eigentlichen Zugriff gibt's erst,
+ * wenn der Stripe-Webhook (`app/api/webhooks/stripe/route.ts`) die Zahlung bestätigt.
+ */
+
 import { prisma } from "@/lib/prisma";
 import { stripe, getBaseUrl } from "@/lib/stripe";
 
@@ -7,6 +15,13 @@ export type CreateCheckoutResult =
   | { kind: "stripe"; redirectTo: string }
   | { kind: "error"; message: string };
 
+/**
+ * Startet den Kauf eines Kurses für einen User.
+ *
+ * @returns Ein Objekt, das sagt was als Nächstes passieren soll: direkt in
+ * den Kurs (`free` / `already-enrolled`), weiter zu Stripe (`stripe`),
+ * oder eine Fehlermeldung anzeigen (`error`).
+ */
 export async function createCheckoutSession(
   userId: string,
   courseId: string,
@@ -86,6 +101,9 @@ export async function createCheckoutSession(
     ],
     success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/courses/${courseId}?canceled=true`,
+    // userId/courseId hängen wir hier UND unten am subscription/payment_intent
+    // an. Grund: Der Webhook bekommt diese Objekte später einzeln rein und
+    // hätte sonst keine Ahnung, zu welchem User/Kurs sie gehören.
     metadata: {
       userId: user.id,
       courseId: course.id,

@@ -7,6 +7,13 @@ type LanguageSwitcherProps = {
   initialLocale: Locale;
 };
 
+/**
+ * Das Sprach-Dropdown in der Navbar. Speichert die gewählte Sprache in
+ * einem Cookie (damit Server-Components wie die Navbar es beim nächsten
+ * Request kennen) und zusätzlich im localStorage (damit `AutoTranslate`
+ * es sofort im Browser hat, ohne neu zu laden). Außerdem wird ein
+ * Custom-Event gefeuert, damit `AutoTranslate` die Seite direkt neu übersetzt.
+ */
 export default function LanguageSwitcher({ initialLocale }: LanguageSwitcherProps) {
   const [locale, setLocale] = useState(initialLocale);
 

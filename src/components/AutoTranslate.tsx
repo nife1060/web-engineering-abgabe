@@ -1,5 +1,20 @@
 "use client";
 
+/**
+ * Übersetzt die UI zur Laufzeit mit Hilfe eines Wörterbuchs.
+ *
+ * Wir schreiben alle Components auf Englisch, statt überall `t()`-Aufrufe
+ * einzubauen. Stattdessen geht dieses Modul nach dem Rendern einmal durch
+ * den ganzen DOM, schaut bei jedem Text in `uiTranslations` (`@/lib/i18n`)
+ * nach einer Übersetzung und tauscht den Text direkt aus. Vorteil: Die
+ * Components bleiben sauber. Nachteil: Der Compiler merkt nicht, wenn man
+ * vergisst einen neuen Text auch ins Wörterbuch einzutragen.
+ *
+ * Wird einmal im Root-Layout eingebaut. Läuft beim ersten Laden, dann
+ * immer wieder wenn sich der DOM ändert (MutationObserver), und auch wenn
+ * der Nutzer im LanguageSwitcher die Sprache wechselt.
+ */
+
 import { useEffect } from "react";
 import { defaultLocale, normalizeLocale, uiTranslations, type Locale } from "@/lib/i18n";
 
@@ -9,6 +24,14 @@ type AutoTranslateProps = {
 
 const ATTRIBUTES = ["placeholder", "aria-label", "title"] as const;
 
+/**
+ * Dreht `uiTranslations` einmal um, damit man auch von Deutsch zurück auf
+ * Englisch kommt. Brauchen wir, weil im DOM manchmal schon deutscher Text
+ * steht (z.B. wenn React ein Re-Render macht und den Originaltext aus dem
+ * JSX wieder reinschreibt) — um "Kurse entdecken" neu zu übersetzen,
+ * müssen wir erstmal wissen, dass das die deutsche Version von "Browse
+ * Courses" ist.
+ */
 function buildReverseDictionary() {
   const reverse: Record<string, string> = {};
 
@@ -23,6 +46,17 @@ function buildReverseDictionary() {
 
 const reverseDictionary = buildReverseDictionary();
 
+/**
+ * Übersetzt Texte mit Zahlen drin (z.B. "12 lessons completed"), die man
+ * nicht einfach 1:1 im Wörterbuch nachschlagen kann, weil sich die Zahl
+ * ja ständig ändert.
+ *
+ * Ist ehrlich gesagt ein bisschen ein Hack: Für jeden dynamischen Text in
+ * der App haben wir hier von Hand ein Regex-Paar ergänzt (eine Richtung
+ * für Deutsch, eine zurück). Wenn jemand einen neuen Text mit Zahl
+ * einbaut, muss er nicht vergessen das hier nachzutragen — der Code
+ * erinnert einen daran leider nicht.
+ */
 function translateDynamicText(text: string, locale: Locale) {
   if (locale === "de") {
     return text
@@ -75,6 +109,12 @@ function translateDynamicText(text: string, locale: Locale) {
       .replace(/^(\d+) Datei in deiner Bibliothek\.$/, "$1 file in your library.");
 }
 
+/**
+ * Übersetzt ein einzelnes Stück Text. Holt sich bei Bedarf erst die
+ * englische Quelle zurück (übers umgekehrte Wörterbuch), schaut dann im
+ * normalen Wörterbuch nach, und falls das nichts findet, probiert es noch
+ * {@link translateDynamicText} für Texte mit Zahlen.
+ */
 function translateValue(value: string, locale: Locale) {
   const source = reverseDictionary[value] ?? value;
   const direct = locale === defaultLocale ? source : uiTranslations[locale][source] ?? source;
@@ -86,6 +126,9 @@ function translateValue(value: string, locale: Locale) {
   return translateDynamicText(value, locale);
 }
 
+// Text-Nodes haben oft Leerzeichen/Zeilenumbrüche drumherum (kommt vom
+// JSX), die wir beim Nachschlagen mit .trim() entfernen. Die hängen wir
+// hier wieder an, sonst rutscht im DOM alles zusammen.
 function preserveOuterWhitespace(original: string, translated: string) {
   const leading = original.match(/^\s*/)?.[0] ?? "";
   const trailing = original.match(/\s*$/)?.[0] ?? "";
@@ -93,12 +136,14 @@ function preserveOuterWhitespace(original: string, translated: string) {
   return `${leading}${translated}${trailing}`;
 }
 
+/** Diese Elemente fassen wir nicht an: Scripts, Styles, Code-Blöcke und alles mit `data-no-translate`. */
 function shouldSkipElement(element: Element | null) {
   if (!element) return true;
 
   return Boolean(element.closest("script, style, textarea, code, pre, [data-no-translate]"));
 }
 
+/** Übersetzt einen einzelnen Text-Node, falls nötig. */
 function translateTextNode(node: Text, locale: Locale) {
   if (shouldSkipElement(node.parentElement)) return;
 
@@ -112,6 +157,7 @@ function translateTextNode(node: Text, locale: Locale) {
   }
 }
 
+/** Übersetzt die sichtbaren Attribute eines Elements (placeholder, aria-label, title). */
 function translateElementAttributes(element: Element, locale: Locale) {
   if (shouldSkipElement(element)) return;
 
@@ -126,6 +172,7 @@ function translateElementAttributes(element: Element, locale: Locale) {
   });
 }
 
+/** Geht `root` (und alles darin) durch und übersetzt jeden Text-Node und jedes relevante Attribut. */
 function translateTree(root: ParentNode, locale: Locale) {
   if (root instanceof Element) {
     translateElementAttributes(root, locale);
@@ -144,6 +191,12 @@ function translateTree(root: ParentNode, locale: Locale) {
   }
 }
 
+/**
+ * Holt sich die bevorzugte Sprache des Nutzers aus dem localStorage, oder
+ * falls da nichts steht aus dem `learnify-locale`-Cookie (das setzt der
+ * LanguageSwitcher). localStorage kommt beim ersten Request vom Server ja
+ * noch nicht mit, deswegen nutzt der Server für `initialLocale` nur das Cookie.
+ */
 function currentLocale() {
   const storedLocale = window.localStorage.getItem("learnify-locale") ?? undefined;
   const cookieLocale = document.cookie
@@ -154,6 +207,12 @@ function currentLocale() {
   return normalizeLocale(storedLocale ?? cookieLocale);
 }
 
+/**
+ * Startet die Übersetzung und hält sie am Laufen, solange die Seite offen
+ * ist: erst einmal alles übersetzen, dann mit einem MutationObserver auch
+ * neuen Inhalt erwischen (z.B. bei Routenwechseln), und außerdem auf
+ * Sprachwechsel reagieren ohne dass die Seite neu geladen werden muss.
+ */
 export default function AutoTranslate({ initialLocale }: AutoTranslateProps) {
   useEffect(() => {
     let locale = normalizeLocale(initialLocale);

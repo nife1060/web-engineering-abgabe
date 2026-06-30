@@ -1,3 +1,11 @@
+/**
+ * JSON-Variante vom Checkout: gibt die Redirect-URL einfach als JSON
+ * zurück, statt selbst weiterzuleiten. Praktisch für Client-Code, der die
+ * URL braucht ohne ein Formular abzuschicken. Der normale Kaufen-Button
+ * nutzt stattdessen die `purchaseCourse` Server Action
+ * (`@/app/actions/checkout.ts`) — beide rufen am Ende `createCheckoutSession` auf.
+ */
+
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { createCheckoutSession } from "@/lib/checkout";

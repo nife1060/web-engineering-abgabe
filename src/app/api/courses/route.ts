@@ -1,6 +1,14 @@
+/**
+ * Endpunkt zum Speichern eines Kurses, wird vom Course Builder genutzt.
+ * Ein einziges POST reicht für "neuer Kurs" und "Kurs bearbeiten" (siehe
+ * weiter unten den `courseId`-Check) — der Client muss sich also nicht
+ * merken, welche Variante gerade dran ist.
+ */
+
 import { NextResponse } from "next/server";
 import type { CourseStatus, LessonType, PricingModel } from "@/generated/prisma/enums";
 import { requireRole } from "@/lib/auth";
+import { validateCoursePublish } from "@/lib/course-format";
 import { prisma } from "@/lib/prisma";
 
 type AnswerInput = {
@@ -76,30 +84,29 @@ function asLessonType(value: unknown): LessonType {
     : "VIDEO";
 }
 
+/** Ruft die gemeinsame Publish-Prüfung auf, rechnet lessonCount vorher aus den Modulen zusammen. */
 function validatePublish(input: CourseInput) {
-  const errors: string[] = [];
   const modules = input.modules ?? [];
   const lessonCount = modules.reduce((count, module) => count + (module.lessons?.length ?? 0), 0);
-  const pricingModel = asPricingModel(input.pricingModel);
-  const price = Number(input.price ?? 0);
 
-  if (!asString(input.title)) errors.push("Titel fehlt.");
-  if (!asString(input.description)) errors.push("Beschreibung fehlt.");
-  if (modules.length === 0) errors.push("Mindestens ein Modul ist erforderlich.");
-  if (lessonCount === 0) errors.push("Mindestens eine Lektion ist erforderlich.");
-  if (pricingModel === "PAID" && (!Number.isFinite(price) || price <= 0)) {
-    errors.push("Paid Courses brauchen einen gültigen Preis.");
-  }
-  if (pricingModel === "SUBSCRIPTION") {
-    const subscriptionPrice = Number(input.subscriptionPrice ?? 0);
-    if (!Number.isFinite(subscriptionPrice) || subscriptionPrice <= 0) {
-      errors.push("Subscription Courses brauchen einen gültigen monatlichen Preis.");
-    }
-  }
-
-  return errors;
+  return validateCoursePublish({
+    title: asString(input.title),
+    description: asString(input.description),
+    moduleCount: modules.length,
+    lessonCount,
+    pricingModel: asPricingModel(input.pricingModel),
+    price: Number(input.price ?? 0),
+    subscriptionPrice: Number(input.subscriptionPrice ?? 0),
+  });
 }
 
+/**
+ * Legt einen neuen Kurs an, wenn `input.id` fehlt, sonst wird der
+ * bestehende aktualisiert (dabei wird geprüft, ob die Session überhaupt
+ * der Eigentümer ist, außer bei Admins). Bei `status: "PUBLISHED"` muss
+ * der Kurs zusätzlich {@link validateCoursePublish} bestehen — als
+ * `"DRAFT"` darf er unvollständig sein.
+ */
 export async function POST(request: Request) {
   const session = await requireRole(["CREATOR", "ADMIN"]);
 
@@ -193,6 +200,14 @@ export async function POST(request: Request) {
 
     courseId = course.id;
 
+    // Wichtig: Wir gleichen das Curriculum nicht ab, sondern löschen bei
+    // jedem Speichern einfach alle Module und bauen sie aus dem Entwurf neu
+    // auf. Im Prisma-Schema hängt an Module -> Lesson -> Question -> Answer
+    // alles per Cascade dran, und auch Progress hängt an Lesson. Das
+    // bedeutet: Wenn man einen veröffentlichten Kurs bearbeitet und
+    // speichert, gehen die alten Lesson-IDs verloren und damit auch der
+    // ganze Lernfortschritt der Studierenden, weil die Progress-Einträge
+    // an die alten IDs gebunden waren.
     await tx.module.deleteMany({
       where: { courseId },
     });

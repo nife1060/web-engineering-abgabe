@@ -1,3 +1,5 @@
+/** Endpunkt zum Löschen eines Kurses, genutzt von `DeleteCourseButton`. */
+
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -6,6 +8,12 @@ type Props = {
   params: Promise<{ courseId: string }>;
 };
 
+/**
+ * Löscht einen Kurs. Wegen der Cascade-Relationen im Prisma-Schema fliegen
+ * dabei automatisch auch alle Module, Lektionen, Fragen, Antworten,
+ * Einschreibungen und Bestellungen mit raus. Nur der Creator vom Kurs
+ * selbst oder ein Admin dürfen das.
+ */
 export async function DELETE(_request: Request, { params }: Props) {
   const session = await requireRole(["CREATOR", "ADMIN"]);
 

@@ -1,3 +1,11 @@
+/**
+ * Hierhin schickt Stripe nach erfolgreichem Checkout. Problem: Der Browser
+ * landet oft hier, bevor der Webhook (`@/app/api/webhooks/stripe`) die
+ * Bestellung als PAID markiert hat. Deshalb zeigen wir erstmal einen
+ * "Wird verarbeitet"-Zustand und laden die Seite automatisch neu, bis der
+ * Status auf PAID (oder FAILED) steht.
+ */
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
@@ -57,7 +65,7 @@ export default async function CheckoutSuccessPage({ searchParams }: Props) {
   if (order.status === "PENDING") {
     return (
       <SuccessShell>
-        {/* Auto-refresh every 2s until webhook flips status to PAID */}
+        {/* Automatische Aktualisierung alle 2s, bis der Webhook den Status auf PAID setzt */}
         <meta httpEquiv="refresh" content="2" />
         <div className="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin mx-auto mb-5" />
         <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Processing your payment…</h1>

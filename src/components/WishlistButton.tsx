@@ -1,5 +1,12 @@
 "use client";
 
+/**
+ * Der Button "zur Wunschliste hinzufügen" auf der Kursdetailseite.
+ * Die Wunschliste hat kein Backend (siehe `@/lib/enrollment-storage`),
+ * deshalb checkt diese Component selbst, ob der Kurs schon drauf ist,
+ * statt es als Prop zu bekommen.
+ */
+
 import { useEffect, useState } from "react";
 import type { Course } from "@/lib/data";
 import {
@@ -16,6 +23,8 @@ type WishlistButtonProps = {
 export default function WishlistButton({ course, initiallyEnrolled = false }: WishlistButtonProps) {
   const [isWishlisted, setIsWishlisted] = useState(false);
 
+  // Beim ersten Rendern und bei jeder Änderung neu aus dem localStorage
+  // lesen (das passende Event wird in @/lib/enrollment-storage gefeuert).
   useEffect(() => {
     const refreshState = () => {
       setIsWishlisted(

@@ -1,11 +1,17 @@
 "use server";
 
+/**
+ * Server Actions für die Buttons "mark as complete" / "mark as still
+ * working" im Lesson-Player (`@/app/learn/[courseId]/page.tsx`).
+ */
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { issueCertificateIfEligible } from "@/lib/certificates";
 import { prisma } from "@/lib/prisma";
 
+/** Markiert eine Lektion als abgeschlossen. War es die letzte Lektion vom Kurs, gibt's direkt ein Zertifikat dazu. */
 export async function markLessonCompleted(courseId: string, lessonId: string) {
   const session = await getSession();
 
@@ -32,13 +38,14 @@ export async function markLessonCompleted(courseId: string, lessonId: string) {
     },
   });
 
-  // Completing the final lesson of a course earns a certificate.
+  // Der Abschluss der letzten Lektion eines Kurses vergibt ein Zertifikat.
   await issueCertificateIfEligible(session.userId, courseId);
 
   revalidatePath(`/learn/${courseId}`);
   revalidatePath("/mylearning");
 }
 
+/** Das Gegenstück zu markLessonCompleted: setzt die Lektion wieder auf unvollständig zurück. */
 export async function markLessonStillWorking(courseId: string, lessonId: string) {
   const session = await getSession();
 

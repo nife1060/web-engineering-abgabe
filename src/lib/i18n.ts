@@ -1,3 +1,15 @@
+/**
+ * Sprach-Einstellungen und das Wörterbuch für die Übersetzung Englisch -> Deutsch.
+ *
+ * Wir schreiben den ganzen JSX-Code auf Englisch. `AutoTranslate.tsx` geht
+ * dann zur Laufzeit den DOM durch und ersetzt jeden Text, der hier im
+ * Wörterbuch (`uiTranslations`) einen Eintrag hat. Das ist nicht der
+ * übliche Weg (normalerweise nutzt man `t()`-Funktionen direkt im Code),
+ * spart uns aber Übersetzungsaufrufe überall im Code. Nachteil: Wenn man
+ * einen neuen englischen Text einbaut, muss man nicht vergessen, ihn auch
+ * hier einzutragen — der Compiler merkt das nicht von allein.
+ */
+
 export const locales = ["en", "de"] as const;
 
 export type Locale = (typeof locales)[number];
@@ -8,6 +20,7 @@ export function isLocale(value: string | undefined): value is Locale {
   return value === "en" || value === "de";
 }
 
+/** Gibt {@link defaultLocale} zurück, wenn der Wert kein gültiges Locale ist. */
 export function normalizeLocale(value: string | undefined): Locale {
   return isLocale(value) ? value : defaultLocale;
 }
@@ -17,6 +30,8 @@ export const languageNames: Record<Locale, string> = {
   de: "Deutsch",
 };
 
+// Englischer Text als Key, deutsche Übersetzung als Value. Englisch selbst
+// braucht keine Einträge, translatePhrase gibt den Text dann einfach so zurück.
 export const uiTranslations: Record<Locale, Record<string, string>> = {
   en: {},
   de: {
@@ -334,6 +349,11 @@ export const uiTranslations: Record<Locale, Record<string, string>> = {
   },
 };
 
+/**
+ * Sucht die Übersetzung für einen UI-Text im aktuellen Locale.
+ * @returns Den Text unverändert, wenn das Locale Englisch ist oder es
+ * keinen passenden Eintrag im Wörterbuch gibt.
+ */
 export function translatePhrase(text: string, locale: Locale) {
   if (locale === defaultLocale) return text;
 

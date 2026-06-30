@@ -1,10 +1,10 @@
-import Link from "next/link";
+/** Die Kursdetailseite, sehen sowohl Leute, die den Kurs noch kaufen wollen, als auch eingeschriebene Studierende. */
+
 import { notFound } from "next/navigation";
 import EnrollmentButton from "@/components/EnrollmentButton";
 import WishlistButton from "@/components/WishlistButton";
 import { courseCtaLabel, formatCoursePrice } from "@/lib/course-format";
 import { getSession } from "@/lib/auth";
-import { mockCourses } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { hasActiveEnrollment } from "@/lib/enrollments";
 
@@ -16,64 +16,61 @@ export const dynamic = "force-dynamic";
 
 export default async function CourseDetailPage({ params }: Props) {
   const { id } = await params;
-  const mockCourse = mockCourses.find((course) => course.id === id);
   const session = await getSession();
-  const dbCourse = mockCourse
-    ? null
-    : await prisma.course.findUnique({
-        where: { id },
+  const dbCourse = await prisma.course.findUnique({
+    where: { id },
+    include: {
+      creator: {
+        select: { name: true },
+      },
+      modules: {
+        orderBy: { order: "asc" },
         include: {
-          creator: {
-            select: { name: true },
-          },
-          modules: {
+          lessons: {
             orderBy: { order: "asc" },
-            include: {
-              lessons: {
-                orderBy: { order: "asc" },
-              },
-            },
           },
         },
-      });
+      },
+    },
+  });
 
-  if (dbCourse && dbCourse.status !== "PUBLISHED" && session?.role !== "ADMIN" && session?.userId !== dbCourse.creatorId) {
+  if (!dbCourse) return notFound();
+
+  // Entwürfe (noch nicht veröffentlichte Kurse) darf nur der eigene
+  // Creator oder ein Admin sehen. Alle anderen kriegen ein 404 statt
+  // "Access denied", damit man gar nicht erst merkt, dass es den Kurs überhaupt gibt.
+  if (dbCourse.status !== "PUBLISHED" && session?.role !== "ADMIN" && session?.userId !== dbCourse.creatorId) {
     return notFound();
   }
 
   const enrolled = await hasActiveEnrollment(session?.userId, id);
-  const isCreatorOrAdmin =
-    !!session && !!dbCourse && (session.role === "ADMIN" || session.userId === dbCourse.creatorId);
+  const isCreatorOrAdmin = session?.role === "ADMIN" || session?.userId === dbCourse.creatorId;
 
-  const course =
-    mockCourse ??
-    (dbCourse && {
-      id: dbCourse.id,
-      title: dbCourse.title,
-      description: dbCourse.description,
-      category: dbCourse.categoryName,
-      rating: 0,
-      studentsCount: 0,
-      instructor: dbCourse.creator.name,
-      level: dbCourse.level as "Beginner" | "Intermediate" | "Advanced",
-      pricingModel: dbCourse.pricingModel,
-      price: dbCourse.price,
-      subscriptionPrice: dbCourse.subscriptionPrice,
-      enrolled,
-      thumbnail: dbCourse.thumbnailUrl || "",
-      modules: dbCourse.modules.map((module) => ({
-        id: module.id,
-        title: module.title,
-        lessons: module.lessons.map((lesson) => ({
-          id: lesson.id,
-          title: lesson.title,
-          duration: lesson.type === "VIDEO" ? "Video" : lesson.type === "QUIZ" ? "Quiz" : "Text",
-          type: lesson.type === "VIDEO" ? ("video" as const) : ("text" as const),
-        })),
+  const course = {
+    id: dbCourse.id,
+    title: dbCourse.title,
+    description: dbCourse.description,
+    category: dbCourse.categoryName,
+    rating: 0,
+    studentsCount: 0,
+    instructor: dbCourse.creator.name,
+    level: dbCourse.level as "Beginner" | "Intermediate" | "Advanced",
+    pricingModel: dbCourse.pricingModel,
+    price: dbCourse.price,
+    subscriptionPrice: dbCourse.subscriptionPrice,
+    enrolled,
+    thumbnail: dbCourse.thumbnailUrl || "",
+    modules: dbCourse.modules.map((module) => ({
+      id: module.id,
+      title: module.title,
+      lessons: module.lessons.map((lesson) => ({
+        id: lesson.id,
+        title: lesson.title,
+        duration: lesson.type === "VIDEO" ? "Video" : lesson.type === "QUIZ" ? "Quiz" : "Text",
+        type: lesson.type === "VIDEO" ? ("video" as const) : ("text" as const),
       })),
-    });
-
-  if (!course) return notFound();
+    })),
+  };
 
   const pricingModel = course.pricingModel ?? "PAID";
   const subscriptionPrice = course.subscriptionPrice ?? 0;
@@ -138,8 +135,8 @@ export default async function CourseDetailPage({ params }: Props) {
                 <EnrollmentButton
                   course={course}
                   label={ctaLabel}
-                  enrolledHref={dbCourse ? `/learn/${course.id}` : `/courses/${course.id}`}
-                  enrolledLabel={dbCourse ? "Continue Learning" : "Go to Course"}
+                  enrolledHref={`/learn/${course.id}`}
+                  enrolledLabel="Continue Learning"
                   initiallyEnrolled={enrolled || isCreatorOrAdmin}
                 />
 

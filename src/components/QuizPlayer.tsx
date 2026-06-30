@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * Das Quiz in einer Lektion. Man kann pro Frage Antworten ankreuzen und
+ * sich dann anzeigen lassen, ob man richtig lag. Läuft komplett im
+ * Browser, es wird nichts an den Server geschickt oder irgendwo bewertet.
+ */
+
 import { useState } from "react";
 
 type Answer = {
@@ -18,8 +24,9 @@ type Props = {
   questions: Question[];
 };
 
+/** Eine Karte pro Frage, jede mit eigenem State für angekreuzte Antworten und ob die Lösung schon aufgedeckt ist. */
 export default function QuizPlayer({ questions }: Props) {
-  // selected: set of checked answer IDs per question
+  // selected: Set der angehakten Antwort-IDs pro Frage
   const [selected, setSelected] = useState<Record<string, Set<string>>>({});
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
@@ -47,6 +54,8 @@ export default function QuizPlayer({ questions }: Props) {
         const isRevealed = revealed[question.id];
         const correctIds = new Set(question.answers.filter((a) => a.isCorrect).map((a) => a.id));
 
+        // Bei Fragen mit mehreren richtigen Antworten zählt es nur dann als
+        // richtig, wenn wirklich alle richtigen angekreuzt sind und keine falsche dabei ist.
         const allCorrectChecked = [...correctIds].every((id) => checkedIds.has(id));
         const noWrongChecked = [...checkedIds].every((id) => correctIds.has(id));
         const isPerfect = allCorrectChecked && noWrongChecked;

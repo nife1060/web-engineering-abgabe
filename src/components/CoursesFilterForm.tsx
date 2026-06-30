@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * Filter-Sidebar für den Kurskatalog (/courses). Wird einfach als
+ * GET-Formular an "/courses" abgeschickt, der Filterzustand steckt also
+ * komplett in der URL. Die Seite selbst holt sich dann mit den neuen
+ * Parametern die Kurse aus der Datenbank. Der `filters`-State hier ist nur
+ * dafür da, die Inputs zwischen Tippen und Abschicken zu steuern.
+ */
+
 import { ReactNode, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -183,6 +191,9 @@ export default function CoursesFilterForm({
             value={filters.sort}
             onChange={(event) => {
               updateFilter("sort", event.target.value);
+              // Anders als bei den übrigen Filtern wird die Sortierung
+              // sofort bei Änderung angewendet, statt auf den
+              // "Apply"-Button zu warten.
               event.currentTarget.form?.requestSubmit();
             }}
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"

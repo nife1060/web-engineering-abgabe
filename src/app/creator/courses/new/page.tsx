@@ -1,3 +1,5 @@
+/** /creator/courses/new — zeigt einfach den `CourseBuilder` ohne `initialCourse`, also im "Neu erstellen"-Modus. */
+
 import AccessDenied from "@/components/AccessDenied";
 import CourseBuilder from "@/components/CourseBuilder";
 import { ensureDefaultCategories } from "@/lib/categories";

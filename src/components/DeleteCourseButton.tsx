@@ -1,5 +1,7 @@
 "use client";
 
+/** Button zum Löschen eines Kurses, mit Bestätigungs-Dialog vorher. Wird auf den Kurskarten des Creators benutzt. */
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 

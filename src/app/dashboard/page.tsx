@@ -1,3 +1,10 @@
+/**
+ * Das Analytics-Dashboard für Creator und Admin (/dashboard): Umsatz,
+ * Einschreibungen und wie gut die einzelnen Kurse laufen. Creator sehen
+ * nur ihre eigenen Kurse, Admins die ganze Plattform. Alle Zahlen werden
+ * hier live aus den Prisma-Daten berechnet, nirgends zwischengespeichert.
+ */
+
 import Link from "next/link";
 import AccessDenied from "@/components/AccessDenied";
 import { requireRole } from "@/lib/auth";
@@ -15,6 +22,7 @@ function addMonths(date: Date, months: number) {
   return new Date(date.getFullYear(), date.getMonth() + months, 1);
 }
 
+/** Baut das Dashboard zusammen, gefiltert auf das, was der eingeloggte User sehen darf. */
 export default async function DashboardPage() {
   const session = await requireRole(["CREATOR", "ADMIN"]);
 
@@ -23,6 +31,8 @@ export default async function DashboardPage() {
   }
 
   const isAdmin = session.role === "ADMIN";
+  // Ist creatorScope undefined, filtern die Queries unten gar nicht erst
+  // nach creatorId — Admins sehen also alles, Creator nur ihr eigenes Zeug.
   const creatorScope = isAdmin ? undefined : session.userId;
 
   const courseWhere = creatorScope ? { creatorId: creatorScope } : {};
@@ -59,6 +69,8 @@ export default async function DashboardPage() {
   const distinctStudents = new Set(enrollments.map((enrollment) => enrollment.userId)).size;
   const totalRevenue = paidOrders.reduce((sum, order) => sum + order.amount, 0);
 
+  // Erstmal 6 leere Monate vorbereiten (ältester zuerst), damit das
+  // Diagramm immer 6 Monate zeigt, auch wenn in manchen davon gar nichts verkauft wurde.
   const now = new Date();
   const monthBuckets: { key: string; label: string; sales: number }[] = [];
   for (let i = 5; i >= 0; i--) {
@@ -94,12 +106,16 @@ export default async function DashboardPage() {
     students.add(enrollment.userId);
     studentsPerCourse.set(enrollment.courseId, students);
   }
+  // Statt einer verschachtelten Map (Map<courseId, Map<userId, count>>)
+  // nutzen wir hier einfach den kombinierten Key "courseId:userId" — geht
+  // einfacher mit dem flachen Ergebnis von oben.
   const completedPerCourseUser = new Map<string, number>();
   for (const entry of completedProgress) {
     const key = `${entry.lesson.module.courseId}:${entry.userId}`;
     completedPerCourseUser.set(key, (completedPerCourseUser.get(key) ?? 0) + 1);
   }
-  // Average completion across enrolled students (0% counts in); null when not measurable.
+  // Durchschnittlicher Fortschritt über alle eingeschriebenen Studierenden
+  // hinweg (auch 0% zählt mit). Gibt null zurück, wenn es nichts zu berechnen gibt.
   function avgProgress(courseId: string): number | null {
     const students = studentsPerCourse.get(courseId);
     const totalLessons = lessonsPerCourse.get(courseId) ?? 0;

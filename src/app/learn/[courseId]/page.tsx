@@ -1,9 +1,17 @@
+/**
+ * Der Lesson-Player (/learn/[courseId]?lesson=...) — hier lernt man
+ * eigentlich, abgesichert über `canAccessCourse`. Zeigt Video-, Text- oder
+ * Quiz-Inhalte an, trackt welche Lektionen schon erledigt sind und vergibt
+ * am Ende ein Zertifikat.
+ */
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { markLessonCompleted, markLessonStillWorking } from "@/app/actions/course-interactions";
 import QuizPlayer from "@/components/QuizPlayer";
 import { getSession } from "@/lib/auth";
 import { issueCertificateIfEligible } from "@/lib/certificates";
+import { calculateProgressPercent } from "@/lib/course-format";
 import { prisma } from "@/lib/prisma";
 import { canAccessCourse } from "@/lib/enrollments";
 
@@ -14,6 +22,11 @@ type Props = {
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Macht aus einer normalen YouTube-Link eine einbettbare Embed-URL.
+ * @returns `null`, wenn es keine YouTube-URL ist oder keine Video-ID
+ * gefunden wird — der Aufrufer zeigt dann stattdessen einen normalen Link statt eines iframes.
+ */
 function getYouTubeEmbedUrl(url: string | null) {
   if (!url) return null;
 
@@ -21,7 +34,7 @@ function getYouTubeEmbedUrl(url: string | null) {
     const parsedUrl = new URL(url);
 
     if (parsedUrl.hostname.includes("youtube.com")) {
-      // Already an embed URL — use as-is
+      // Bereits eine Embed-URL — unverändert übernehmen
       if (parsedUrl.pathname.startsWith("/embed/")) {
         return url;
       }
@@ -113,7 +126,7 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
   });
   const completedLessonIds = new Set(progress.map((item) => item.lessonId));
   const completedCount = completedLessonIds.size;
-  const progressPercent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
+  const progressPercent = calculateProgressPercent(completedCount, lessons.length);
   const currentIndex = lessons.findIndex((lesson) => lesson.id === currentLesson.id);
   const nextLesson = lessons[currentIndex + 1];
   const previousLesson = lessons[currentIndex - 1];
@@ -123,7 +136,7 @@ export default async function LearnCoursePage({ params, searchParams }: Props) {
   const courseStatusLabel =
     progressPercent >= 100 ? "Course completed" : completedCount > 0 ? "In progress" : "Not started";
 
-  // Once every lesson is done the learner has earned a certificate.
+  // Sobald jede Lektion erledigt ist, hat der Lernende ein Zertifikat verdient.
   const certificate =
     progressPercent >= 100 ? await issueCertificateIfEligible(session.userId, course.id) : null;
 

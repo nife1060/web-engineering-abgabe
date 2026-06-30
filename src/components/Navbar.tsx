@@ -1,3 +1,10 @@
+/**
+ * Die Navigationsleiste oben, wird vom Root-Layout auf jeder Seite eingebunden.
+ * Hier wird entschieden welche Links je nach Rolle angezeigt werden — die
+ * eigentliche Zugriffsprüfung (`requireRole`/`getSession`) läuft aber auf
+ * den einzelnen Seiten selbst, nicht hier.
+ */
+
 import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
@@ -15,6 +22,9 @@ export default async function Navbar() {
   const session = await getSession();
   const role = session?.role;
 
+  // Jeder Link sagt selbst, für welche Rolle(n) er sichtbar sein soll.
+  // Wird einmal gefiltert und dann unten sowohl in der Desktop- als auch
+  // in der Mobile-Navigation verwendet.
   const links = [
     { href: "/courses", label: "Browse Courses", show: Boolean(role) },
     { href: "/mylearning", label: "My Learning", show: Boolean(role) },

@@ -1,9 +1,20 @@
 "use client";
 
+/**
+ * Der Assistent zum Erstellen und Bearbeiten von Kursen, in mehreren Schritten.
+ * Wird sowohl von /creator/courses/new als auch von
+ * /creator/courses/[courseId]/edit genutzt (beim Bearbeiten wird einfach
+ * `initialCourse` aus der DB mitgegeben). Alles passiert erstmal nur lokal
+ * im State, gespeichert wird erst wenn `saveCourse` den kompletten Entwurf
+ * an die Kurs-API schickt.
+ */
+
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CourseStatus, LessonType, PricingModel } from "@/generated/prisma/enums";
+import { acceptedMediaFileTypes, formatFileSize, mediaTypeColors } from "@/lib/media-format";
+import { validateCoursePublish } from "@/lib/course-format";
 
 type CategoryOption = {
   id: string;
@@ -70,6 +81,7 @@ type Props = {
 };
 
 const steps = ["Basic Info", "Curriculum", "Media", "Pricing", "Review"];
+const PLATFORM_FEE_RATE = 0.2;
 const inputClass = "w-full px-4 py-3 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500";
 const textareaClass = `${inputClass} resize-none`;
 
@@ -96,21 +108,6 @@ function createLesson(index: number): LessonDraft {
     questions: [],
   };
 }
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-const MEDIA_TYPE_COLORS: Record<string, string> = {
-  IMAGE: "bg-blue-100 text-blue-700",
-  VIDEO: "bg-purple-100 text-purple-700",
-  PDF: "bg-red-100 text-red-700",
-  AUDIO: "bg-green-100 text-green-700",
-  TEXT: "bg-yellow-100 text-yellow-700",
-  OTHER: "bg-gray-100 text-gray-500",
-};
 
 function createModule(index: number): ModuleDraft {
   return {
@@ -153,6 +150,12 @@ function parsePriceInput(value: string) {
   return Number.isFinite(price) ? price : 0;
 }
 
+/**
+ * Rendert die 5 Schritte vom Builder ({@link steps}) und hält den
+ * kompletten State für den Kurs-Entwurf. Ob `initialCourse` gesetzt ist
+ * oder nicht, entscheidet ob wir einen bestehenden Kurs bearbeiten oder
+ * einen neuen anlegen (siehe {@link saveCourse}).
+ */
 export default function CourseBuilder({ categories, initialCourse }: Props) {
   const router = useRouter();
   const initialDraft = initialCourse ?? defaultCourse(categories);
@@ -169,7 +172,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Media-Picker state
+  // State für den Medien-Picker (Auswahl aus der Bibliothek)
   const [pickerLessonId, setPickerLessonId] = useState<string | null>(null);
   const [libraryItems, setLibraryItems] = useState<MediaItem[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
@@ -182,14 +185,16 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     [course.modules],
   );
 
+  // Je nach Preismodell zählt entweder price oder subscriptionPrice (bei
+  // FREE ist es 0). Brauchen wir nur für die Vorschau im Pricing-Schritt.
   const effectivePrice =
     course.pricingModel === "PAID"
       ? Number(course.price) || 0
       : course.pricingModel === "SUBSCRIPTION"
         ? Number(course.subscriptionPrice) || 0
         : 0;
-  const platformFee = effectivePrice * 0.2;
-  const creatorRevenue = effectivePrice * 0.8;
+  const platformFee = effectivePrice * PLATFORM_FEE_RATE;
+  const creatorRevenue = effectivePrice * (1 - PLATFORM_FEE_RATE);
 
   function updateCourse(patch: Partial<CourseDraft>) {
     setCourse((prev) => ({ ...prev, ...patch }));
@@ -265,6 +270,10 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     }));
   }
 
+  // Diese Funktion sucht die richtige Lektion raus und ersetzt ihre Fragen.
+  // Alle Quiz-Funktionen unten (addQuestion, removeQuestion, addAnswer, ...)
+  // nutzen sie, damit man sich nicht jedes Mal durch den ganzen
+  // Modul-/Lektionsbaum wühlen muss.
   function updateLessonQuestions(
     moduleId: string,
     lessonId: string,
@@ -341,6 +350,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     );
   }
 
+  /** Klappt das Panel "Aus meiner Bibliothek anhängen" für eine Lektion auf/zu und lädt beim ersten Öffnen die Bibliothek nach. */
   async function openLibraryPicker(lessonId: string) {
     if (pickerLessonId === lessonId) {
       setPickerLessonId(null);
@@ -395,6 +405,11 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     }));
   }
 
+  /**
+   * Lädt eine Datei als Lektionsanhang über /api/media/upload hoch. Anders
+   * als `uploadFile` unten landet die Datei dabei auch in der
+   * Medienbibliothek des Creators, weil ein `Media`-Eintrag angelegt wird.
+   */
   async function handleLessonMediaUpload(moduleId: string, lessonId: string, file: File) {
     setMediaError((prev) => ({ ...prev, [lessonId]: "" }));
     setUploadingForLessonId(lessonId);
@@ -421,6 +436,12 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     }
   }
 
+  /**
+   * Lädt das Kurs-Thumbnail hoch, über den einfacheren /api/uploads-Endpunkt.
+   * Der speichert die Datei nur und gibt die URL zurück, ohne einen
+   * `Media`-Eintrag anzulegen — ein Thumbnail ist ja keine Lektionsdatei,
+   * die man wiederverwenden würde.
+   */
   async function uploadFile(file: File) {
     const formData = new FormData();
     formData.append("file", file);
@@ -455,22 +476,28 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
     }
   }
 
+  /** Prüft den Entwurf gegen die Publish-Regeln aus `@/lib/course-format`. */
   function validatePublish() {
-    const errors: string[] = [];
-
-    if (!course.title.trim()) errors.push("Titel fehlt.");
-    if (!course.description.trim()) errors.push("Beschreibung fehlt.");
-    if (course.modules.length === 0) errors.push("Mindestens ein Modul ist erforderlich.");
-    if (lessonCount === 0) errors.push("Mindestens eine Lektion ist erforderlich.");
-    if (course.pricingModel === "PAID" && (!Number.isFinite(course.price) || course.price <= 0)) {
-      errors.push("Paid Courses brauchen einen gültigen Preis.");
-    }
-    if (course.pricingModel === "SUBSCRIPTION" && (!Number.isFinite(course.subscriptionPrice) || course.subscriptionPrice <= 0)) {
-      errors.push("Subscription Courses brauchen einen gültigen monatlichen Preis.");
-    }
-    return errors;
+    return validateCoursePublish({
+      title: course.title,
+      description: course.description,
+      moduleCount: course.modules.length,
+      lessonCount,
+      pricingModel: course.pricingModel,
+      price: course.price,
+      subscriptionPrice: course.subscriptionPrice,
+    });
   }
 
+  /**
+   * Schickt den kompletten Entwurf per POST an /api/courses. Wenn
+   * `course.id` noch leer ist, wird ein neuer Kurs angelegt, sonst der
+   * bestehende aktualisiert — beide Seiten (neu/bearbeiten) nutzen also
+   * denselben Endpunkt.
+   *
+   * Bei `DRAFT` wird gar nicht groß geprüft, Entwürfe dürfen unvollständig
+   * sein. Nur bei `PUBLISHED` läuft die Prüfung aus {@link validatePublish}.
+   */
   async function saveCourse(status: CourseStatus) {
     setMessage("");
     setError("");
@@ -522,6 +549,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
 
       setMessage(result.message ?? "Course saved.");
       setCourse((prev) => ({ ...prev, id: result.id ?? prev.id }));
+      // Kurz warten, damit man die Erfolgsmeldung noch sieht, bevor es weitergeht.
       setTimeout(() => router.push("/dashboard/courses"), 700);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Course could not be saved.");
@@ -709,7 +737,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
 
                           {isEditing && (
                             <div className="mt-4 border-t border-gray-100 pt-4 space-y-4">
-                              {/* Title + type — always visible */}
+                              {/* Titel + Typ — immer sichtbar */}
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Lesson title</label>
@@ -725,7 +753,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                                 </div>
                               </div>
 
-                              {/* VIDEO fields */}
+                              {/* VIDEO-Felder */}
                               {lesson.type === "VIDEO" && (
                                 <div className="space-y-4">
                                   <div>
@@ -739,7 +767,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                                 </div>
                               )}
 
-                              {/* TEXT fields */}
+                              {/* TEXT-Felder */}
                               {lesson.type === "TEXT" && (
                                 <div>
                                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Inhalt</label>
@@ -747,7 +775,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                                 </div>
                               )}
 
-                              {/* QUIZ builder */}
+                              {/* QUIZ-Builder */}
                               {lesson.type === "QUIZ" && (
                                 <div className="space-y-3">
                                   <div className="flex items-center justify-between">
@@ -834,7 +862,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                                 </div>
                               )}
 
-                              {/* Media section — VIDEO and TEXT only */}
+                              {/* Medien-Bereich — nur VIDEO und TEXT */}
                               {lesson.type !== "QUIZ" && (
                                 <div className="border-t border-gray-100 pt-4">
                                   <p className="text-xs font-semibold text-gray-500 mb-3">Medien-Anhänge</p>
@@ -843,7 +871,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                                     <div className="mb-3 space-y-2">
                                       {lesson.media.map((item) => (
                                         <div key={item.id} className="flex items-center gap-3 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl">
-                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${MEDIA_TYPE_COLORS[item.type] ?? MEDIA_TYPE_COLORS.OTHER}`}>
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${mediaTypeColors[item.type] ?? mediaTypeColors.OTHER}`}>
                                             {item.type}
                                           </span>
                                           <span className="flex-1 text-xs text-gray-700 truncate">{item.filename}</span>
@@ -879,7 +907,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                                         className="sr-only"
                                         disabled={uploadingForLessonId === lesson.id}
                                         ref={(el) => { lessonFileRefs.current[lesson.id] = el; }}
-                                        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,application/pdf,audio/mpeg,audio/wav,audio/ogg,text/plain,text/markdown,text/javascript,text/typescript,text/x-python,text/x-sh"
+                                        accept={acceptedMediaFileTypes}
                                         onChange={(e) => {
                                           const file = e.target.files?.[0];
                                           if (file) handleLessonMediaUpload(module.id, lesson.id, file);
@@ -919,7 +947,7 @@ export default function CourseBuilder({ categories, initialCourse }: Props) {
                                                 onClick={() => attachMediaToLesson(module.id, lesson.id, item)}
                                                 className={`w-full flex items-center gap-3 px-3 py-2 text-left transition ${alreadyAttached ? "opacity-40 cursor-default" : "hover:bg-purple-50"}`}
                                               >
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${MEDIA_TYPE_COLORS[item.type] ?? MEDIA_TYPE_COLORS.OTHER}`}>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${mediaTypeColors[item.type] ?? mediaTypeColors.OTHER}`}>
                                                   {item.type}
                                                 </span>
                                                 <span className="flex-1 text-xs text-gray-700 truncate">{item.filename}</span>

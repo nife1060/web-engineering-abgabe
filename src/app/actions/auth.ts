@@ -1,5 +1,10 @@
 "use server";
 
+/**
+ * Server Actions für Login und Registrierung (genutzt von `@/components/AuthForms`).
+ * Hier und nur hier wird eine Session erstellt bzw. ein neuer Account angelegt.
+ */
+
 import { redirect } from "next/navigation";
 import type { Role } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
@@ -9,6 +14,9 @@ export type AuthFormState = {
   error?: string;
 };
 
+// Bei der Registrierung kann man sich nur USER oder CREATOR aussuchen.
+// ADMIN-Accounts gibt's nur über direkten DB-Zugriff, und die können sich
+// laut Prüfung weiter unten in loginUser sowieso nicht einloggen.
 const registrationRoles: Role[] = ["USER", "CREATOR"];
 
 function asText(value: FormDataEntryValue | null) {
@@ -21,6 +29,12 @@ function asRole(value: FormDataEntryValue | null): Role | null {
     : null;
 }
 
+/**
+ * Legt aus dem Registrierungsformular einen neuen Account an und leitet
+ * danach zu /login weiter. Man wird nach der Registrierung also nicht
+ * automatisch eingeloggt, sondern muss sich noch einmal anmelden.
+ * @returns `{ error }`, wenn z.B. die E-Mail schon vergeben ist, sonst Redirect.
+ */
 export async function registerUser(
   _state: AuthFormState,
   formData: FormData,
@@ -56,6 +70,12 @@ export async function registerUser(
   redirect("/login");
 }
 
+/**
+ * Checkt die Zugangsdaten, setzt die Session und leitet zur Home-Seite der
+ * jeweiligen Rolle weiter (siehe `redirectForRole`). Admins können sich
+ * hier absichtlich nicht einloggen, dafür gibt's aktuell keinen Flow.
+ * @returns `{ error }` bei falschen Zugangsdaten, sonst Redirect.
+ */
 export async function loginUser(
   _state: AuthFormState,
   formData: FormData,
@@ -83,6 +103,7 @@ export async function loginUser(
   redirectForRole(user.role);
 }
 
+/** Logout: löscht die Session und schickt den Nutzer zurück auf die Startseite. */
 export async function logoutUser() {
   await clearSession();
   redirect("/");

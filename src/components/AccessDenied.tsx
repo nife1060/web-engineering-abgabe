@@ -1,3 +1,10 @@
+/**
+ * Wird gezeigt, wenn die Rollenprüfung (`requireRole`) fehlschlägt, also
+ * wenn jemand auf eine Seite will, für die er keine Berechtigung hat.
+ * Statt einfach wegzuleiten, zeigen wir lieber eine Meldung, damit klar
+ * ist warum man nichts sieht.
+ */
+
 import Link from "next/link";
 
 export default function AccessDenied() {

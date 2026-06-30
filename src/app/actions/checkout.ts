@@ -1,10 +1,19 @@
 "use server";
 
+/** Server Action für den "Enroll"/"Subscribe"-Button auf der Kursdetailseite. */
+
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { createCheckoutSession } from "@/lib/checkout";
 
+/**
+ * Holt sich das Ergebnis von `createCheckoutSession` und leitet dann
+ * passend weiter. Bei kostenlosen Kursen oder wenn man schon eingeschrieben
+ * ist, wird sofort die Seite neu geladen (revalidatePath), weil es da
+ * keine Zahlung gibt, auf die man warten müsste. Bei echten Käufen
+ * passiert das erst später über den Stripe-Webhook.
+ */
 export async function purchaseCourse(formData: FormData) {
   const session = await getSession();
   if (!session) {

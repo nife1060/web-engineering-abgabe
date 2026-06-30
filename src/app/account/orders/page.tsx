@@ -1,3 +1,5 @@
+/** /account/orders — zeigt die Bestellhistorie samt Beleg-Links für den eingeloggten Nutzer. */
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";

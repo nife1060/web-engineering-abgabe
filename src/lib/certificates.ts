@@ -1,8 +1,16 @@
+/**
+ * Hier wird geprüft, ob ein Kurs fertig ist, und Zertifikate werden vergeben.
+ * Genutzt vom Lesson-Player (Zertifikat direkt nach der letzten Lektion)
+ * und von "My Learning" (falls ein Kurs schon vorher fertig war, bevor es
+ * Zertifikate überhaupt gab).
+ */
+
 import { prisma } from "@/lib/prisma";
 
 /**
- * A course is "completed" when it has at least one lesson and every lesson has a
- * completed Progress record for the given user.
+ * Ein Kurs zählt als "abgeschlossen", wenn er mindestens eine Lektion hat
+ * und der Nutzer für jede einzelne Lektion einen Progress-Eintrag mit
+ * completed = true hat.
  */
 export async function getCourseCompletion(userId: string, courseId: string) {
   const lessons = await prisma.lesson.findMany({
@@ -32,8 +40,7 @@ export async function getCourseCompletion(userId: string, courseId: string) {
 }
 
 /**
- * Build a human-friendly, printable certificate serial number.
- * Example: LF-2026-K4P9-X7Q2
+ * Baut eine Seriennummer fürs Zertifikat, z.B. LF-2026-K4P9-X7Q2.
  */
 function generateSerial(): string {
   const year = new Date().getFullYear();
@@ -43,8 +50,8 @@ function generateSerial(): string {
 }
 
 /**
- * Issue a certificate for a user/course if they have finished every lesson and
- * do not already hold one. Safe to call repeatedly (idempotent).
+ * Vergibt ein Zertifikat, wenn der Kurs fertig ist und es noch keins gibt.
+ * Kann man mehrfach aufrufen, ohne dass doppelte Zertifikate entstehen.
  */
 export async function issueCertificateIfEligible(userId: string, courseId: string) {
   const existing = await prisma.certificate.findUnique({
@@ -66,7 +73,7 @@ export async function issueCertificateIfEligible(userId: string, courseId: strin
       data: { userId, courseId, serial: generateSerial() },
     });
   } catch {
-    // A concurrent request may have created it first (unique constraint).
+    // Kann sein, dass eine andere Anfrage gleichzeitig schon eins angelegt hat (Unique Constraint).
     return prisma.certificate.findUnique({
       where: { userId_courseId: { userId, courseId } },
     });
@@ -74,9 +81,8 @@ export async function issueCertificateIfEligible(userId: string, courseId: strin
 }
 
 /**
- * Issue certificates for every fully-completed course the user is enrolled in.
- * Used to backfill certificates for courses that were completed before the
- * feature existed. Returns the user's full, up-to-date certificate list.
+ * Geht alle Kurse des Nutzers durch und vergibt Zertifikate nach, falls
+ * welche fehlen. Gibt am Ende die komplette, aktuelle Zertifikatsliste zurück.
  */
 export async function syncCertificatesForUser(userId: string) {
   const enrollments = await prisma.enrollment.findMany({

@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * Öffnet den Druckdialog des Browsers für die Zertifikatsseite.
+ * Die Seite hat extra `@media print`-Styles (siehe printStyles in
+ * certificates/[id]/page.tsx), damit man das Zertifikat sauber als PDF speichern kann.
+ */
 export default function CertificatePrintButton({ label }: { label: string }) {
   return (
     <button

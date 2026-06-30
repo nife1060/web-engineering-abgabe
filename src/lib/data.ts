@@ -1,12 +1,11 @@
-export type Role = "admin" | "creator" | "user";
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  avatar: string;
-}
+/**
+ * Typen für Kurse, Module und Lektionen, wie sie in der UI gebraucht werden.
+ *
+ * Das ist absichtlich nicht 1:1 das Prisma-Schema (`@/generated/prisma/models`):
+ * Die Pages wandeln ihre Prisma-Ergebnisse erst in diese Typen um, bevor sie
+ * an die Components weitergegeben werden. So müssen die Components nicht
+ * wissen, wie die Datenbank aufgebaut ist.
+ */
 
 export interface Lesson {
   id: string;
@@ -39,29 +38,3 @@ export interface Course {
   enrolled?: boolean;
   progress?: number;
 }
-
-// Courses now come exclusively from the database (see prisma + the course
-// builder). The previously hardcoded demo courses have been removed so only
-// real, created courses appear across the app.
-export const mockCourses: Course[] = [];
-
-export const mockAnalytics = {
-  totalStudents: 1240,
-  totalRevenue: 48320,
-  totalCourses: 4,
-  avgRating: 4.7,
-  monthlySales: [
-    { month: "Jan", sales: 3200 },
-    { month: "Feb", sales: 4100 },
-    { month: "Mar", sales: 3800 },
-    { month: "Apr", sales: 5200 },
-    { month: "May", sales: 6100 },
-    { month: "Jun", sales: 5800 },
-  ],
-  courseStats: [
-    { title: "Web Dev Bootcamp", students: 580, revenue: 22400, rating: 4.8 },
-    { title: "React Masterclass", students: 340, revenue: 14200, rating: 4.7 },
-    { title: "Node.js Backend", students: 210, revenue: 8100, rating: 4.6 },
-    { title: "TypeScript Deep Dive", students: 110, revenue: 3620, rating: 4.9 },
-  ],
-};

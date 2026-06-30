@@ -1,3 +1,5 @@
+/** /dashboard/media — lädt die Medienbibliothek aus der DB und gibt sie an die interaktive Client-Component weiter. */
+
 import AccessDenied from "@/components/AccessDenied";
 import MediaLibraryClient from "@/components/MediaLibraryClient";
 import { requireRole } from "@/lib/auth";
@@ -17,6 +19,9 @@ export default async function MediaLibraryPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  // Date-Objekte von Prisma kann man nicht einfach so an eine
+  // Client-Component weiterreichen, deswegen wandeln wir sie hier erst in
+  // normale ISO-Strings um.
   const serialised = media.map((item) => ({
     id: item.id,
     filename: item.filename,

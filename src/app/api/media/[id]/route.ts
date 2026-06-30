@@ -1,3 +1,5 @@
+/** Endpunkt zum Löschen einer Datei aus der Medienbibliothek, genutzt von `MediaLibraryClient`. */
+
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
@@ -8,6 +10,7 @@ type Props = {
   params: Promise<{ id: string }>;
 };
 
+/** Löscht die Datei von der Festplatte und den passenden `Media`-Eintrag. Nur der Uploader selbst oder ein Admin dürfen das. */
 export async function DELETE(_request: Request, { params }: Props) {
   const session = await requireRole(["CREATOR", "ADMIN"]);
 
@@ -34,7 +37,7 @@ export async function DELETE(_request: Request, { params }: Props) {
   try {
     await unlink(filePath);
   } catch {
-    // file may already be gone — continue with DB deletion
+    // Falls die Datei schon weg ist, ist das auch okay — wir löschen den DB-Eintrag trotzdem
   }
 
   await prisma.media.delete({ where: { id } });

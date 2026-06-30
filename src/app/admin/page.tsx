@@ -1,3 +1,13 @@
+/**
+ * Das Admin-Panel: zeigt alle Nutzer mit ihrer Rolle.
+ *
+ * Anmerkung: Aktuell kann man sich als ADMIN gar nicht einloggen
+ * (`loginUser` in `@/app/actions/auth.ts` blockt das, und `getSession`
+ * akzeptiert sowieso nur CREATOR/USER-Cookies). Diese Seite und der
+ * "Admin"-Link in der Navbar sind also momentan praktisch tot, bis es
+ * irgendwann mal einen Admin-Login gibt.
+ */
+
 import Link from "next/link";
 import AccessDenied from "@/components/AccessDenied";
 import { requireRole } from "@/lib/auth";

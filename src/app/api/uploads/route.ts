@@ -1,3 +1,10 @@
+/**
+ * Einfacher Upload nur für das Kurs-Thumbnail (Media-Schritt im
+ * `CourseBuilder`). Im Gegensatz zu `@/app/api/media/upload` wird hier
+ * kein `Media`-Eintrag angelegt — die Datei wird nur gespeichert und die
+ * URL zurückgegeben, ein Thumbnail braucht ja keinen Bibliothekseintrag.
+ */
+
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
@@ -11,6 +18,9 @@ const allowedTypes = new Set([
   "video/quicktime",
 ]);
 
+// Anders als bei api/media/upload (zufällige UUID als Name) behalten wir
+// hier eine Version vom Originalnamen, damit man ihn noch erkennt. Unsichere
+// Zeichen wie Pfadtrenner werden rausgefiltert, damit nichts kaputtgeht.
 function safeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "-").toLowerCase();
 }

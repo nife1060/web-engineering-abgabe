@@ -1,3 +1,8 @@
+/**
+ * Eine Kurskarte für die "My Courses"-Seite des Creators (/dashboard/courses),
+ * mit Buttons zum Bearbeiten, Ansehen und Löschen.
+ */
+
 import Link from "next/link";
 import type { CourseStatus, PricingModel } from "@/generated/prisma/enums";
 import { formatCoursePrice } from "@/lib/course-format";
@@ -24,6 +29,13 @@ export default function CreatorCourseCard({ course }: Props) {
   const isPublished = course.status === "PUBLISHED";
 
   return (
+    // Hier machen wir einen kleinen CSS-Trick, damit die ganze Karte
+    // klickbar ist, aber die Buttons trotzdem einzeln funktionieren: Ein
+    // unsichtbarer <Link> liegt über der ganzen Karte (z-10). Der
+    // Inhalts-Wrapper hat pointer-events: none, damit Klicks durch ihn
+    // hindurch zu diesem Link gehen. Nur die Aktionsleiste setzt
+    // pointer-events wieder auf auto und liegt höher im z-Index, damit ihre
+    // eigenen Buttons Vorrang haben.
     <div className="group relative bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition cursor-pointer">
       <Link href={`/courses/${course.id}`} className="absolute inset-0 z-10" aria-label={`${course.title} ansehen`} />
       <div className="h-40 bg-purple-50 overflow-hidden">

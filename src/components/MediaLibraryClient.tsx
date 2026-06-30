@@ -1,6 +1,14 @@
 "use client";
 
+/**
+ * Die Medienbibliothek des Creators: hochladen, durchsuchen und löschen
+ * von eigenen Dateien (Thumbnails, Lektionsanhänge). Wird auf der
+ * /dashboard/media-Seite genutzt. Der Course Builder nutzt zwar denselben
+ * Upload-Endpunkt, hat aber eine eigene Auswahl-UI dafür.
+ */
+
 import { useRef, useState } from "react";
+import { acceptedMediaFileTypes, formatFileSize, mediaTypeColors } from "@/lib/media-format";
 
 type MediaItem = {
   id: string;
@@ -25,21 +33,7 @@ const TYPE_LABELS: Record<string, string> = {
   OTHER: "Sonstige",
 };
 
-const TYPE_COLORS: Record<string, string> = {
-  IMAGE: "bg-blue-100 text-blue-700",
-  VIDEO: "bg-purple-100 text-purple-700",
-  PDF: "bg-red-100 text-red-700",
-  AUDIO: "bg-green-100 text-green-700",
-  TEXT: "bg-yellow-100 text-yellow-700",
-  OTHER: "bg-gray-100 text-gray-500",
-};
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
+/** Zeigt bei Bildern eine echte Vorschau, sonst ein farbiges Icon je nach Dateityp. */
 function MediaIcon({ type, url, filename }: { type: string; url: string; filename: string }) {
   if (type === "IMAGE") {
     return (
@@ -47,6 +41,9 @@ function MediaIcon({ type, url, filename }: { type: string; url: string; filenam
         src={url}
         alt={filename}
         className="w-full h-full object-cover"
+        // Falls die Datei zufällig nicht mehr existiert (z.B. manuell
+        // gelöscht), blenden wir das Bild einfach aus, statt das hässliche
+        // Standard-Icon vom Browser für kaputte Bilder zu zeigen.
         onError={(e) => {
           (e.currentTarget as HTMLImageElement).style.display = "none";
         }}
@@ -77,6 +74,7 @@ function MediaIcon({ type, url, filename }: { type: string; url: string; filenam
   );
 }
 
+/** Zeigt die Upload-Box und darunter alle hochgeladenen Dateien als Grid. */
 export default function MediaLibraryClient({ initialMedia }: Props) {
   const [media, setMedia] = useState<MediaItem[]>(initialMedia);
   const [uploading, setUploading] = useState(false);
@@ -148,7 +146,6 @@ export default function MediaLibraryClient({ initialMedia }: Props) {
         </p>
       )}
 
-      {/* Upload area */}
       <label className="block mb-8 border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:border-purple-400 transition cursor-pointer group">
         {uploading ? (
           <div className="flex flex-col items-center gap-3">
@@ -173,7 +170,7 @@ export default function MediaLibraryClient({ initialMedia }: Props) {
           type="file"
           className="sr-only"
           disabled={uploading}
-          accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,application/pdf,audio/mpeg,audio/wav,audio/ogg,text/plain,text/markdown,text/javascript,text/typescript,text/x-python,text/x-sh"
+          accept={acceptedMediaFileTypes}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleUpload(file);
@@ -181,7 +178,6 @@ export default function MediaLibraryClient({ initialMedia }: Props) {
         />
       </label>
 
-      {/* Media grid */}
       {media.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center">
           <p className="text-gray-500 text-sm">Noch keine Mediendateien. Lade deine erste Datei hoch.</p>
@@ -194,7 +190,7 @@ export default function MediaLibraryClient({ initialMedia }: Props) {
                 <MediaIcon type={item.type} url={item.url} filename={item.filename} />
               </div>
               <div className="p-3">
-                <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-1.5 ${TYPE_COLORS[item.type] ?? TYPE_COLORS.OTHER}`}>
+                <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mb-1.5 ${mediaTypeColors[item.type] ?? mediaTypeColors.OTHER}`}>
                   {TYPE_LABELS[item.type] ?? item.type}
                 </span>
                 <p className="text-xs font-semibold text-gray-900 truncate" title={item.filename}>

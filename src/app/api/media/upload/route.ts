@@ -1,3 +1,14 @@
+/**
+ * Upload-Endpunkt für Lektionsanhänge und alles, was in die Medienbibliothek soll.
+ * Anders als `@/app/api/uploads/route.ts` (nur fürs Kurs-Thumbnail) wird
+ * hier bei jedem Upload ein `Media`-Eintrag angelegt, die Datei landet
+ * also auch in der Bibliothek des Creators und kann wiederverwendet werden.
+ *
+ * Hier wird auch geprüft, welche Dateitypen und Größen erlaubt sind.
+ * `acceptedMediaFileTypes` in `@/lib/media-format` ist nur ein Hinweis für
+ * den Datei-Dialog im Browser, die echte Prüfung passiert hier.
+ */
+
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -49,6 +60,11 @@ function fileExtension(filename: string) {
   return dotIndex >= 0 ? filename.slice(dotIndex) : "";
 }
 
+/**
+ * Speichert die Datei unter public/uploads mit einem zufälligen
+ * Dateinamen (so überschreibt sich nichts und der Originalname taucht
+ * nicht in der URL auf) und legt dafür einen `Media`-Eintrag an.
+ */
 export async function POST(request: Request) {
   const session = await requireRole(["CREATOR", "ADMIN"]);
 

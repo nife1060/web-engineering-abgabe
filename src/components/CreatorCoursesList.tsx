@@ -1,5 +1,7 @@
 "use client";
 
+/** Filtert die Kursliste des Creators direkt im Browser nach Suchbegriff und Status, ohne Server-Anfrage. */
+
 import { useMemo, useState } from "react";
 import type { CourseStatus, PricingModel } from "@/generated/prisma/enums";
 import CreatorCourseCard from "@/components/CreatorCourseCard";

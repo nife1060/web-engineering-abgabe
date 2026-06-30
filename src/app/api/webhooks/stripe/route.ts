@@ -1,3 +1,15 @@
+/**
+ * Hier kommen die Webhook-Events von Stripe an. Das ist die einzige Stelle,
+ * an der wirklich Zugriff auf einen Kurs freigeschaltet wird.
+ * `createCheckoutSession` (`@/lib/checkout.ts`) startet nur die
+ * Stripe-Session und legt eine PENDING-Bestellung an — die Einschreibung
+ * selbst passiert erst hier, sobald Stripe uns sagt dass bezahlt wurde.
+ *
+ * Stripe schickt uns kein "wer hat das gemacht" mit, daher müssen wir uns
+ * über die `userId`/`courseId`-Metadaten behelfen, die wir beim Erstellen
+ * der Checkout-Session selbst mitgegeben haben (siehe `@/lib/checkout.ts`).
+ */
+
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
@@ -6,6 +18,7 @@ import { stripe } from "@/lib/stripe";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Prüft, ob ein eingehendes Stripe-Event echt ist, und gibt es an den passenden Handler weiter. */
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -16,6 +29,10 @@ export async function POST(request: Request) {
 
   const rawBody = await request.text();
 
+  // Erst prüfen ob die Anfrage wirklich von Stripe kommt (Signatur mit dem
+  // Webhook-Secret), bevor wir dem Inhalt trauen. Sonst könnte sich
+  // theoretisch jeder selbst einen Kurs freischalten, indem er hier eine
+  // gefälschte Anfrage schickt.
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, secret);
@@ -41,17 +58,24 @@ export async function POST(request: Request) {
         await handleSubscriptionUpdated(event.data.object);
         break;
       default:
-        // Unhandled event — Stripe sends many, that's fine
+        // Event interessiert uns nicht — Stripe schickt noch viele andere, ist okay so
         break;
     }
   } catch (err) {
     console.error(`Error handling Stripe event ${event.type}:`, err);
-    // Still return 200 so Stripe doesn't retry forever; we logged the error.
+    // Trotzdem 200 zurückgeben, sonst schickt Stripe das Event endlos
+    // wieder. Der Fehler ist ja schon geloggt.
   }
 
   return NextResponse.json({ received: true }, { status: 200 });
 }
 
+/**
+ * Schaltet den Kurs frei, wenn der Checkout abgeschlossen ist (egal ob
+ * Einmalzahlung oder erste Abo-Rate), und speichert die Bestellung samt
+ * Beleg-Link. Stripe kann uns dasselbe Event auch mal doppelt schicken,
+ * deshalb checken wir vorher ob die Bestellung schon als PAID markiert ist.
+ */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.userId;
   const courseId = session.metadata?.courseId;
@@ -72,6 +96,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   let stripeInvoiceId: string | null = null;
   let stripePaymentIntentId: string | null = null;
 
+  // Die Beleg-/Rechnungs-URL ist nur nice-to-have für die
+  // Bestellübersicht, kein Muss. Wenn das hier schiefgeht, loggen wir es
+  // nur und machen trotzdem mit der Einschreibung weiter.
   if (mode === "payment" && session.payment_intent) {
     const intentId = typeof session.payment_intent === "string"
       ? session.payment_intent
@@ -138,6 +165,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     const item = subscription.items.data[0];
+    // current_period_end fehlt eigentlich nie, der 30-Tage-Fallback ist
+    // nur fürs Allerwenigste falls Stripe doch mal kein Datum mitschickt.
     const currentPeriodEnd = item?.current_period_end
       ? new Date(item.current_period_end * 1000)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -196,6 +225,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
+/** Setzt eine Bestellung auf FAILED, wenn die Checkout-Session ohne Zahlung abgelaufen ist. */
 async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
   const order = await prisma.order.findUnique({ where: { stripeSessionId: session.id } });
   if (!order || order.status === "PAID") return;
@@ -205,6 +235,11 @@ async function handleCheckoutExpired(session: Stripe.Checkout.Session) {
   });
 }
 
+/**
+ * Verlängert den Zugriff, wenn eine wiederkehrende Abo-Zahlung
+ * durchgegangen ist. Die allererste Zahlung läuft nicht über diese
+ * Funktion, sondern über `handleCheckoutCompleted`.
+ */
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const parent = invoice.parent;
   const subscriptionId = parent && parent.type === "subscription_details"
@@ -241,6 +276,11 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   });
 }
 
+/**
+ * Wird bei Änderungen am Abo aufgerufen (Plan-Wechsel, Kündigung) und
+ * schaltet den Kurs ab, sobald das Abo nicht mehr aktiv ist. Behandelt
+ * sowohl "updated" als auch "deleted", weil beide Events gleich aussehen.
+ */
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const record = await prisma.subscription.findUnique({
     where: { stripeSubscriptionId: subscription.id },
