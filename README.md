@@ -1,3 +1,11 @@
+# Abgabe Gruppe A-Team
+Gruppenmitglieder: 
+Renat Schentler 770116
+Niklas Feindt 770288
+Julien Geldner 770458
+Julian Thomas Deußer 670546
+Paulo Temme 
+
 # Learnify
 
 Learnify ist eine SaaS-Kursplattform, auf der **Creator** Online-Kurse erstellen und verkaufen und **User** sie kaufen, lernen und Zertifikate sammeln können. Gebaut mit Next.js (App Router), Prisma/SQLite und Stripe.
